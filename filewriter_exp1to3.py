@@ -1,4 +1,4 @@
-import os, WritePythonScripts_GCMC
+import os, filewriter_utils
 
 if __name__=="__main__":
 
@@ -248,12 +248,12 @@ if __name__=="__main__":
             # -----------------------------------------------------------
 
             # create a parameter log in the directory
-            WritePythonScripts_GCMC.create_parameter_log(dirname, parameters)
+            filewriter_utils.create_parameter_log(dirname, parameters)
 
             # write the actual file
-            WritePythonScripts_GCMC.write_trilmp_file(dirname+"/"+filename, parameters)
+            filewriter_utils.write_trilmp_file(dirname+"/"+filename, parameters)
 
             # include mesh if needed
-            WritePythonScripts_GCMC.copy_necessary_for_file_to_run(dirname)
+            filewriter_utils.copy_necessary_for_file_to_run(dirname)
 
     fdir.close()
