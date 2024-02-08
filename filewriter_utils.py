@@ -80,6 +80,24 @@ def write_gcmc_experiment_regions_and_parameters(f, parameters):
         f.writelines(f"region_1_geo=({dictionary_parameters_experiment['xlo_1']}, {dictionary_parameters_experiment['xhi_1']}, {dictionary_parameters_experiment['ylo_1']}, {dictionary_parameters_experiment['yhi_1']}, {dictionary_parameters_experiment['zlo_1']}, {dictionary_parameters_experiment['zhi_1']})\n")
         f.writelines("parameters_region_1=(N_gcmc_1, X_gcmc_1, seed_gcmc_1, 1.0, mu_gcmc_1, max_gcmc_1)\n")
 
+    if parameters['experiment_number']==4:
+        f.writelines("# region where particles are added\n")
+        f.writelines(f"N_gcmc_1 ={dictionary_parameters_experiment['N_gcmc_1']}\n")
+        f.writelines(f"X_gcmc_1 ={dictionary_parameters_experiment['X_gcmc_1']}\n")
+        f.writelines(f"seed_gcmc_1 ={dictionary_parameters_experiment['X_gcmc_1']}\n")
+        f.writelines(f"mu_gcmc_1={dictionary_parameters_experiment['mu_gcmc_1']}\n")
+        f.writelines(f"max_gcmc_1={dictionary_parameters_experiment['max_gcmc_1']}\n")
+        f.writelines("\n")
+
+        f.writelines(f"sigma_metabolites                = {dictionary_parameters_experiment['sigma_metabolites']}\n")
+        f.writelines(f"interaction_range_metabolites    = {dictionary_parameters_experiment['interaction_range_metabolites']}\n")
+        f.writelines(f"interaction_strength_metabolites = {dictionary_parameters_experiment['interaction_strength_metabolites']}\n")
+        f.writelines("\n")
+
+        f.writelines("# define the region\n")
+        f.writelines(f"region_1_geo=({dictionary_parameters_experiment['xlo_1']}, {dictionary_parameters_experiment['xhi_1']}, {dictionary_parameters_experiment['ylo_1']}, {dictionary_parameters_experiment['yhi_1']}, {dictionary_parameters_experiment['zlo_1']}, {dictionary_parameters_experiment['zhi_1']})\n")
+        f.writelines("parameters_region_1=(N_gcmc_1, X_gcmc_1, seed_gcmc_1, 1.0, mu_gcmc_1, max_gcmc_1)\n")
+
 def write_gcmc_experiment_fixes(f, parameters):
 
     if parameters['experiment_number']==1:
@@ -101,6 +119,15 @@ def write_gcmc_experiment_fixes(f, parameters):
         f.writelines(" ")
 
     if parameters['experiment_number']==3:
+        f.writelines("              fix_gcmc=True,\n")
+        f.writelines("              fix_gcmc_num_regions=1,\n")
+        f.writelines("              fix_gcmc_region_type=('block'),\n")
+        f.writelines("              fix_gcmc_region_parameters=(region_1_geo),\n")
+        f.writelines("              fix_gcmc_fix_parameters=(parameters_region_1),\n")
+        f.writelines("              fix_gcmc_interaction_parameters=(sigma_metabolites, interaction_range_metabolites, interaction_strength_metabolites),\n")
+        f.writelines(" ")
+
+    if parameters['experiment_number']==4:
         f.writelines("              fix_gcmc=True,\n")
         f.writelines("              fix_gcmc_num_regions=1,\n")
         f.writelines("              fix_gcmc_region_type=('block'),\n")
