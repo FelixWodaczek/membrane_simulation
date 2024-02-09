@@ -1,0 +1,173 @@
+from pathlib import Path
+import json
+import os
+
+import numpy as np
+import pandas as pd
+
+import trimesh
+from trimem.mc.trilmp import TriLmp
+from trimem.core import TriMesh
+
+
+class SimulationManager:
+    def __init__(self, target_dir: Path):
+        self.target_dir = target_dir.resolve().absolute()
+        self.parent_dir = target_dir.parent
+
+        os.chdir(str(target_dir)) # Not very clean, this should be avoided technically
+    
+        with open(target_dir.joinpath("parameter_dict.json")) as f:
+            self.param_dict = json.load(f)
+            f.close()
+
+        # create directory to save data of interest
+        target_dir.joinpath("data").mkdir(exist_ok=True)
+
+    @staticmethod
+    def add_walls_to_lammps(trilmp, ylo, yhi, zlo, zhi):
+        trilmp.lmp.commands_string(f"fix ConfinementMet metabolites wall/reflect xhi EDGE ylo {ylo} yhi {yhi} zlo {zlo} zhi {zhi}")
+
+    def create_parameter_log(self, dirname):
+        # open file
+        f = open(dirname+"/parameter_log.dat", "w")
+
+        # write down parameters in log file
+        for key, value in self.param_dict.items():
+            if key!='dictionary_parameters_experiment':
+                f.writelines("{} {}\n".format(key, value))
+
+        # write down parameters characterizing the experiment
+        dictionary_parameters_experiment = self.param_dict['dictionary_parameters_experiment']
+        for key, value in dictionary_parameters_experiment.items():
+            f.writelines("{} {}\n".format(key, value))
+
+    def run(self):
+        sigma = self.param_dict['sigma']
+        # initialization of the membrane mesh
+        mesh_coordinates = pd.read_csv(self.parent_dir.joinpath('mesh_coordinates_N_5072_.dat'), header = None, index_col = False, sep = ' ')
+        mesh_coordinates_array = mesh_coordinates[[1, 2, 3]].to_numpy()
+        mesh_faces = pd.read_csv(self.parent_dir.joinpath('mesh_faces_N_5072_.dat'), header = None, index_col = False, sep = ' ')
+        mesh_faces_array = mesh_faces[[0, 1, 2]].to_numpy()
+        # turning it into a trimesh object
+        mesh = trimesh.Trimesh(vertices=mesh_coordinates_array, faces = mesh_faces_array)
+        # rescaling it so that we start from the right distances
+        desired_average_distance = 2**(1.0/6.0) * sigma
+        current_average_distance = np.mean(mesh.edges_unique_length)
+        scaling = desired_average_distance/current_average_distance
+        mesh.vertices *= scaling
+
+        # mechanical properties of the membrane
+        kappa_b = self.param_dict['kappa_b']
+        kappa_a = self.param_dict['kappa_a']
+        kappa_v = self.param_dict['kappa_v']
+        kappa_c = self.param_dict['kappa_c']
+        kappa_t = self.param_dict['kappa_t']
+        kappa_r = self.param_dict['kappa_r']
+
+        # MD properties
+        step_size = self.param_dict['step_size']
+        traj_steps = self.param_dict['traj_steps']
+        langevin_damp = self.param_dict['langevin_damp']
+        langevin_seed = self.param_dict['langevin_seed']
+        total_sim_time = self.param_dict['total_sim_time']
+        total_number_steps = int(total_sim_time/(step_size*traj_steps))
+
+        # MC/TRIMEM bond flipping properties
+        flip_ratio = self.param_dict['flip_ratio']
+        switch_mode = self.param_dict['switch_mode']
+
+        # ouput and printing
+        discrete_snapshots=self.param_dict['discrete_snapshots']
+        print_frequency = int(discrete_snapshots/(step_size*traj_steps))
+
+        # simulation box parameters
+        xlo = self.param_dict['xlo']
+        xhi = self.param_dict['xhi']
+        ylo = self.param_dict['xlo']
+        yhi = self.param_dict['yhi']
+        zlo = self.param_dict['zlo']
+        zhi = self.param_dict['zhi']
+
+        experiment_param_dict: dict = self.param_dict['dictionary_parameters_experiment']
+
+        # region where particles are added
+        N_gcmc_1 = experiment_param_dict["N_gcmc_1"]
+        X_gcmc_1 = experiment_param_dict["X_gcmc_1"]
+        seed_gcmc_1 = experiment_param_dict["seed_gcmc_1"]
+        mu_gcmc_1 = experiment_param_dict["mu_gcmc_1"]
+        max_gcmc_1 = experiment_param_dict["max_gcmc_1"]
+
+        sigma_metabolites = experiment_param_dict["sigma_metabolites"]
+        interaction_range_metabolites = experiment_param_dict["interaction_range_metabolites"]
+        interaction_strength_metabolites = experiment_param_dict["interaction_strength_metabolites"]
+
+        # define the region
+        x_membrane_max = np.max(mesh_coordinates_array[:, 0])
+        r_mean = np.mean(
+            np.linalg.norm(
+                np.mean(mesh_coordinates_array, axis=0)-mesh_coordinates_array, axis=1
+            )
+        )
+        height_width = r_mean*experiment_param_dict['geometric_factor']
+        region_1_geo = (
+            x_membrane_max, self.param_dict['xhi'], # xlo, xhi
+            -height_width/2, height_width/2, # ylo, yhi
+            -height_width/2, height_width/2, # zlo, zhi
+        )
+        parameters_region_1 = (N_gcmc_1, X_gcmc_1, seed_gcmc_1, 1.0, mu_gcmc_1, max_gcmc_1)
+        
+        # initialization of the trilmp object -- writing out all values for initialization
+        trilmp = TriLmp(
+            initialize=True,                          # use mesh to initialize mesh reference
+            mesh_points=mesh.vertices,                # input mesh vertices
+            mesh_faces=mesh.faces,                    # input of the mesh faces
+            kappa_b=kappa_b,                          # MEMBRANE MECHANICS: bending modulus (kB T)
+            kappa_a=kappa_a,                          # MEMBRANE MECHANICS: constraint on area change from target value (kB T)
+            kappa_v=kappa_v,                          # MEMBRANE MECHANICS: constraint on volume change from target value (kB T)
+            kappa_c=kappa_c,                          # MEMBRANE MECHANICS: constraint on area difference change (understand meaning) (kB T)
+            kappa_t=kappa_t,                          # MEMBRANE MECHANICS: tethering potential to constrain edge length (kB T)
+            kappa_r=kappa_r,                          # MEMBRANE MECHANICS: repulsive potential to prevent surface intersection (kB T)
+            step_size=step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
+            traj_steps=traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping
+            flip_ratio=flip_ratio,                    # MC PART SIMULATION: fraction of edges to flip?
+            initial_temperature=1.0,                  # MD PART SIMULATION: temperature of the system
+            langevin_damp=langevin_damp,              # MD PART SIMULATION: damping of the Langevin thermostat (as in LAMMPS)
+            langevin_seed=langevin_seed,              # MD PART SIMULATION: seed for langevin dynamics
+            pure_MD=True,                             # MD PART SIMULATION: accept every MD trajectory?
+            switch_mode=switch_mode,                  # MD/MC PART SIMULATION: 'random' or 'alternating' flip-or-move
+            box=(xlo,xhi,ylo,yhi,zlo, zhi),           # MD PART SIMULATION: simulation box properties, periodic
+            info=print_frequency,                     # OUTPUT: frequency output in shell
+            thin=print_frequency,                     # OUTPUT: frequency trajectory output
+            output_prefix='data/data',                # OUTPUT: prefix for output filenames
+            restart_prefix='data/data',               # OUTPUT: name for checkpoint files
+            checkpoint_every=print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
+            output_format='lammps_txt',               # OUTPUT: choose different formats for 'lammps_txt', 'lammps_txt_folder' or 'h5_custom'
+            output_counter=0,                         # OUTPUT: initialize trajectory number in writer class
+            performance_increment=print_frequency,    # OUTPUT: output performace stats to prefix_performance.dat file
+            energy_increment=print_frequency,         # OUTPUT: output energies to energies.dat file
+            check_neigh_every=1,                      # NEIGHBOUR LISTS
+            equilibration_rounds=1,                   # MEMBRANE EQUILIBRATION ROUNDS
+            fix_gcmc=True,
+            fix_gcmc_num_regions=1,
+            fix_gcmc_region_type=('block'),
+            fix_gcmc_region_parameters=(region_1_geo),
+            fix_gcmc_fix_parameters=(parameters_region_1),
+            fix_gcmc_interaction_parameters=(sigma_metabolites, interaction_range_metabolites, interaction_strength_metabolites),
+        )
+
+        self.add_walls_to_lammps(trilmp, -height_width/2, height_width/2, -height_width/2, height_width/2)
+
+        trilmp.run(10, equilibration_gcmc=self.param_dict['equilibration_gcmc'])
+
+def main():
+    target_dir = Path("experiment4_varying_factors_distance_boxheight").resolve()
+    for target_dir in target_dir.glob("data*/"):
+
+        sim_manager = SimulationManager(target_dir=target_dir)
+        sim_manager.run()
+        return
+        print("Simulation finished")
+
+if __name__ == '__main__':
+    main()

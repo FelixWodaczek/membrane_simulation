@@ -84,7 +84,7 @@ def write_gcmc_experiment_regions_and_parameters(f, parameters):
         f.writelines("# region where particles are added\n")
         f.writelines(f"N_gcmc_1 ={dictionary_parameters_experiment['N_gcmc_1']}\n")
         f.writelines(f"X_gcmc_1 ={dictionary_parameters_experiment['X_gcmc_1']}\n")
-        f.writelines(f"seed_gcmc_1 ={dictionary_parameters_experiment['X_gcmc_1']}\n")
+        f.writelines(f"seed_gcmc_1 ={dictionary_parameters_experiment['seed_gcmc_1']}\n")
         f.writelines(f"mu_gcmc_1={dictionary_parameters_experiment['mu_gcmc_1']}\n")
         f.writelines(f"max_gcmc_1={dictionary_parameters_experiment['max_gcmc_1']}\n")
         f.writelines("\n")

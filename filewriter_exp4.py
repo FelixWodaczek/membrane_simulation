@@ -1,20 +1,24 @@
 import os
+import json
+import shutil
+from pathlib import Path
 from itertools import product
 
 import filewriter_utils
 
 def main():
     # general names
-    run_fname = "trilmp_gcmc.py"
-    dataset_name = "experiment4_varying_factors_distance_boxheight"
+    dataset_name = Path("experiment4_varying_factors_distance_boxheight").resolve()
 
     # create header directory
-    isExist = os.path.exists(dataset_name)
+    isExist = dataset_name.exists()
     if not isExist:
-        os.makedirs(dataset_name)
-
+        dataset_name.mkdir()
+    
+    shutil.copy("mesh_coordinates_N_5072_.dat", dataset_name.joinpath("mesh_coordinates_N_5072_.dat"))
+    shutil.copy("mesh_faces_N_5072_.dat", dataset_name.joinpath("mesh_faces_N_5072_.dat"))
     # metadata collection for sbatch
-    fdir = open(dataset_name+"/directories_in_directory.dat", "w")
+    fdir = open(dataset_name.joinpath("directories_in_directory.dat"), "w")
 
     # mechanical properties membrane
     sigma=1.0
@@ -27,7 +31,7 @@ def main():
 
     # trimem parameters
     traj_steps=50
-    flipratio=0.1
+    flip_ratio=0.1
 
     # MD parameters
     xlo, xhi = -50, 50
@@ -38,16 +42,16 @@ def main():
     langevin_seed=123
     switch_mode="random"
     total_sim_time=100000  # in time units
-    discret_snapshots=10   # in time units
+    discrete_snapshots=10   # in time units
 
     # Parameters for the GCMC
-    equilibration_gcmc=500000 # in sim step
+    equilibration_gcmc=0 # in sim step
 
     rcs_membrane_metabolite = [1.5, 2.5]            # 2
     interaction_strengths = [1.0, 5.0, 10.0, 20.0]  # 4
-    geometric_factors = [1.0, 0.5, 0.2]             # 3
+    geometric_factors = [1.0, 0.5, 0.2]             # 3 handled
     prob_transforms = [1.0, 0.1, 0.0]               # 3
-    variable_factors = [1, 5, 10]                   # 3
+    variable_factors = [1, 5, 10]                   # 3 handled
 
     for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor in product(
         rcs_membrane_metabolite, interaction_strengths,
@@ -59,19 +63,19 @@ def main():
         seed_gcmc_1 = langevin_seed
         mu_gcmc_1=0
         max_gcmc_1=1000000
-        xlo_1 = -10 # TODO: this the correct place?
-        xhi_1 = 10
-        ylo_1 = -10
-        yhi_1 = 10
-        zlo_1 = -10
-        zhi_1 = 10
+        # xlo_1 = -10
+        # xhi_1 = 10
+        # ylo_1 = -10
+        # yhi_1 = 10
+        # zlo_1 = -10
+        # zhi_1 = 10
 
         sigma_metabolites = 1.0
         interaction_range_metabolites = 2.5
         interaction_strength_metabolites = 10
 
         dirname = "data_trajsteps_"+str(traj_steps)
-        dirname +="_flipratio_"+str(flipratio)
+        dirname +="_flipratio_"+str(flip_ratio)
         dirname +="_stepsize_"+str(step_size)
         dirname +="_seed_"+str(langevin_seed)
         dirname +="_kb_"+str(kappa_b)+"_kv_"+str(kappa_v)
@@ -87,68 +91,62 @@ def main():
         dirname +="_probtrans_"+str(prob_transform)
         dirname +="_factors_"+str(variable_factor)
 
-        fdir.writelines(dirname+"\n")
-        dirname = os.path.join(dataset_name, dirname)
+        dirname = dataset_name.joinpath(dirname)
+        fdir.writelines(dirname.name+"\n")
+
         # create the internal directory where we vary parameters
-        isExist = os.path.exists(dirname)
+        isExist = dirname.exists()
         if not isExist:
-            os.makedirs(dirname)
+            dirname.mkdir()
+        shutil.copy("trilmp_srp_pot.py", dirname.joinpath("trilmp_srp_pot.py"))
 
         # experiment dictionaries
         experiment_dictionary={
-            'N_gcmc_1':N_gcmc_1,
-            'X_gcmc_1':X_gcmc_1,
-            'seed_gcmc_1':seed_gcmc_1,
-            'mu_gcmc_1':mu_gcmc_1,
-            'max_gcmc_1':max_gcmc_1,
-            'xlo_1':xlo_1,
-            'xhi_1':xhi_1,
-            'ylo_1':ylo_1,
-            'yhi_1':yhi_1,
-            'zlo_1':zlo_1,
-            'zhi_1':zhi_1,
-            'sigma_metabolites':sigma_metabolites,
-            'interaction_range_metabolites':interaction_range_metabolites,
-            'interaction_strength_metabolites':interaction_strength_metabolites
+            'N_gcmc_1': N_gcmc_1,
+            'X_gcmc_1': X_gcmc_1,
+            'seed_gcmc_1': seed_gcmc_1,
+            'mu_gcmc_1': mu_gcmc_1,
+            'max_gcmc_1': max_gcmc_1,
+            # 'xlo_1': xlo_1,
+            # 'xhi_1': xhi_1,
+            'geometric_factor': geometric_factor,
+            'sigma_metabolites': sigma_metabolites,
+            'interaction_range_metabolites': interaction_range_metabolites,
+            'interaction_strength_metabolites': interaction_strength_metabolites
         }
         dictionary_parameters_experiment=experiment_dictionary
 
 
         parameters = {
-            'traj_steps':traj_steps,
-            'flipratio':flipratio,
-            'sigma':sigma,
-            'kappa_b':kappa_b,
-            'kappa_a':kappa_a,
-            'kappa_c':kappa_c,
-            'kappa_r':kappa_r,
-            'kappa_t':kappa_t,
-            'kappa_v':kappa_v,
-            'step_size':step_size,
-            'langevin_damp':langevin_damp,
-            'langevin_seed':langevin_seed,
-            'switch_mode':switch_mode,
-            'total_sim_time':total_sim_time,
-            'discret_snapshots':discret_snapshots,
-            'xlo':xlo,
-            'xhi':xhi,
-            'ylo':ylo,
-            'yhi':yhi,
-            'zlo':zlo,
-            'zhi':zhi,
-            'equilibration_gcmc':equilibration_gcmc,
+            'traj_steps': traj_steps,
+            'flip_ratio': flip_ratio,
+            'sigma': sigma,
+            'kappa_b': kappa_b,
+            'kappa_a': kappa_a,
+            'kappa_c': kappa_c,
+            'kappa_r': kappa_r,
+            'kappa_t': kappa_t,
+            'kappa_v': kappa_v,
+            'step_size': step_size,
+            'langevin_damp': langevin_damp,
+            'langevin_seed': langevin_seed,
+            'switch_mode': switch_mode,
+            'total_sim_time': total_sim_time,
+            'discrete_snapshots': discrete_snapshots,
+            'xlo': xlo,
+            'xhi': xhi,
+            'ylo': ylo,
+            'yhi': yhi,
+            'zlo': zlo,
+            'zhi': zhi,
+            'equilibration_gcmc': equilibration_gcmc,
             'experiment_number': 4,
-            'dictionary_parameters_experiment':dictionary_parameters_experiment
+            'dictionary_parameters_experiment': dictionary_parameters_experiment
         }
 
-        # create a parameter log in the directory
-        filewriter_utils.create_parameter_log(dirname, parameters)
-
-        # write the actual file
-        filewriter_utils.write_trilmp_file(dirname+"/"+run_fname, parameters)
-
-        # include mesh if needed
-        filewriter_utils.copy_necessary_for_file_to_run(dirname)
+        with open(dirname.joinpath("parameter_dict.json"), "w") as f:
+            json.dump(parameters, f, indent=4)
+            f.close()
 
         return
 

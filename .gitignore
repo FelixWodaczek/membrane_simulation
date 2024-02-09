@@ -1,3 +1,13 @@
 # binaries and datafiles
 *.dat
 *.txt
+*.json
+*.in
+*.table
+*.lammps
+
+# Python binaries
+*.pyc
+
+# Copied python runfiles
+experiment*/**/*.py
