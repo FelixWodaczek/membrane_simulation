@@ -21,7 +21,7 @@ def main():
     fdir = open(dataset_name.joinpath("directories_in_directory.dat"), "w")
 
     # mechanical properties membrane
-    sigma=1.0
+    sigma_membrane=1.0
     kappa_b=20.0
     kappa_a=2.5e5
     kappa_v=2.5e5
@@ -47,10 +47,10 @@ def main():
     # Parameters for the GCMC
     equilibration_gcmc=0 # in sim step
 
-    rcs_membrane_metabolite = [1.5, 2.5]            # 2
-    interaction_strengths = [1.0, 5.0, 10.0, 20.0]  # 4
+    rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
+    interaction_strengths = [1.0, 5.0, 10.0, 20.0]  # 4 handled
     geometric_factors = [1.0, 0.5, 0.2]             # 3 handled
-    prob_transforms = [1.0, 0.1, 0.0]               # 3
+    prob_transforms = [1.0, 0.1, 0.0]               # 3 handled
     variable_factors = [1, 5, 10]                   # 3 handled
 
     for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor in product(
@@ -71,8 +71,6 @@ def main():
         # zhi_1 = 10
 
         sigma_metabolites = 1.0
-        interaction_range_metabolites = 2.5
-        interaction_strength_metabolites = 10
 
         dirname = "data_trajsteps_"+str(traj_steps)
         dirname +="_flipratio_"+str(flip_ratio)
@@ -85,7 +83,7 @@ def main():
         dirname +="_lgvdamp_"+str(langevin_damp)
         dirname +="_exp_4"
         dirname +="_eqgcmc_"+str(equilibration_gcmc)
-        dirname +="_rcmm_"+str(rc_mm)
+        dirname +="_intrnge_"+str(rc_mm)
         dirname +="_intstrgth_"+str(interaction_strength)
         dirname +="_geomfact_"+str(geometric_factor)
         dirname +="_probtrans_"+str(prob_transform)
@@ -109,10 +107,11 @@ def main():
             'max_gcmc_1': max_gcmc_1,
             # 'xlo_1': xlo_1,
             # 'xhi_1': xhi_1,
+            'prob_transform': prob_transform,
             'geometric_factor': geometric_factor,
             'sigma_metabolites': sigma_metabolites,
-            'interaction_range_metabolites': interaction_range_metabolites,
-            'interaction_strength_metabolites': interaction_strength_metabolites
+            'interaction_range_metabolites': rc_mm,
+            'interaction_strength_metabolites': interaction_strength
         }
         dictionary_parameters_experiment=experiment_dictionary
 
@@ -120,7 +119,7 @@ def main():
         parameters = {
             'traj_steps': traj_steps,
             'flip_ratio': flip_ratio,
-            'sigma': sigma,
+            'sigma_membrane': sigma_membrane,
             'kappa_b': kappa_b,
             'kappa_a': kappa_a,
             'kappa_c': kappa_c,
