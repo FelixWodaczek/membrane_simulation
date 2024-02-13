@@ -241,12 +241,26 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
 
 def main():
     target_dir = Path("experiment4_varying_factors_distance_boxheight").resolve()
-    for target_dir in target_dir.glob("data*/"):
 
-        sim_manager = SimulationManager(target_dir=target_dir)
+    if os.environ.get("SLURM_ARRAY_TASK_ID") is not None:
+        n_dir = int(os.environ.get("SLURM_ARRAY_TASK_ID")) - 1
+        with open(target_dir.joinpath("directories_in_directory.dat"), 'r') as f:
+            subdirs = f.read().splitlines()
+            f.close()
+        
+        subdir = target_dir.joinpath(subdirs[n_dir])
+        sim_manager = SimulationManager(target_dir=subdir)
         sim_manager.run()
         return
-        print("Simulation finished")
+
+    elif False:
+        for target_dir in target_dir.glob("data*/"):
+
+            sim_manager = SimulationManager(target_dir=target_dir)
+            sim_manager.run()
+            return
+            print("Simulation finished")
+    raise ValueError("Tried to run sim but no SLURM_ARRAY_TASK_ID found.")
 
 if __name__ == '__main__':
     main()

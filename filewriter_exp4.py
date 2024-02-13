@@ -147,7 +147,5 @@ def main():
             json.dump(parameters, f, indent=4)
             f.close()
 
-        return
-
 if __name__ == "__main__":
     main()
