@@ -20,7 +20,7 @@
 #
 #Define the amount of RAM used by your job in GigaBytes
 #In shared memory applications this is shared among multiple CPUs
-#SBATCH --mem=6G
+#SBATCH --mem=10G
 #
 #Do not requeue the job in the case it fails.
 #SBATCH --no-requeue
@@ -35,4 +35,4 @@ module load anaconda3/2023.04
 source /mnt/nfs/clustersw/Debian/bullseye/anaconda3/2023.04/activate_anaconda3_2023.04.txt
 conda activate trienv
 
-srun python3 simulation_run_exp4.py
+srun python3 simulation_run_exp4.py -t 240215_experiment4_varying_factors_distance_boxheight

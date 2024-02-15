@@ -8,7 +8,7 @@ import filewriter_utils
 
 def main():
     # general names
-    dataset_name = Path("experiment4_varying_factors_distance_boxheight").resolve()
+    dataset_name = Path("240215_experiment4_varying_factors_distance_boxheight").resolve()
 
     # create header directory
     isExist = dataset_name.exists()
@@ -48,21 +48,20 @@ def main():
     equilibration_gcmc=0 # in sim step
 
     rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
-    interaction_strengths = [1.0, 5.0, 10.0, 20.0]  # 4 handled
-    geometric_factors = [1.0, 0.5, 0.2]             # 3 handled
-    prob_transforms = [1.0, 0.1, 0.0]               # 3 handled
-    variable_factors = [1, 5, 10]                   # 3 handled
+    interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]  # 4 handled
+    geometric_factors = [0.2] # [1.0, 0.5, 0.2]             # 3 handled
+    prob_transforms = [1.0, 0.0] # [1.0, 0.1, 0.0]               # 3 handled
+    variable_factors = [10] #[1, 5, 10]                   # 3 handled
+    vfracs = [0.05, 0.01]
 
-    for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor in product(
+    for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac in product(
         rcs_membrane_metabolite, interaction_strengths,
-        geometric_factors, prob_transforms, variable_factors
+        geometric_factors, prob_transforms, variable_factors, vfracs
     ):
-        
         N_gcmc_1=int(variable_factor*langevin_damp/step_size)
         X_gcmc_1=100
         seed_gcmc_1 = langevin_seed
         mu_gcmc_1=0
-        max_gcmc_1=1000000
         # xlo_1 = -10
         # xhi_1 = 10
         # ylo_1 = -10
@@ -83,6 +82,7 @@ def main():
         dirname +="_lgvdamp_"+str(langevin_damp)
         dirname +="_exp_4"
         dirname +="_eqgcmc_"+str(equilibration_gcmc)
+        dirname +="_vfrac_"+str(vfrac)
         dirname +="_intrnge_"+str(rc_mm)
         dirname +="_intstrgth_"+str(interaction_strength)
         dirname +="_geomfact_"+str(geometric_factor)
@@ -104,7 +104,7 @@ def main():
             'X_gcmc_1': X_gcmc_1,
             'seed_gcmc_1': seed_gcmc_1,
             'mu_gcmc_1': mu_gcmc_1,
-            'max_gcmc_1': max_gcmc_1,
+            'vfrac': vfrac,
             # 'xlo_1': xlo_1,
             # 'xhi_1': xhi_1,
             'prob_transform': prob_transform,

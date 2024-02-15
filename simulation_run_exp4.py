@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import json
 import os
@@ -125,13 +126,6 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
 
         experiment_param_dict: dict = self.param_dict['dictionary_parameters_experiment']
 
-        # region where particles are added
-        N_gcmc_1 = experiment_param_dict["N_gcmc_1"]
-        X_gcmc_1 = experiment_param_dict["X_gcmc_1"]
-        seed_gcmc_1 = experiment_param_dict["seed_gcmc_1"]
-        mu_gcmc_1 = experiment_param_dict["mu_gcmc_1"]
-        max_gcmc_1 = experiment_param_dict["max_gcmc_1"]
-
         # interaction parameters
         sigma_metabolites = experiment_param_dict["sigma_metabolites"]
         interaction_range_metabolites = experiment_param_dict["interaction_range_metabolites"]
@@ -139,6 +133,15 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
 
         sigma_tilde_membrane_metabolite = 0.5*(sigma_metabolites+sigma_membrane)
         rc_tilde_membrane_metabolite = interaction_range_metabolites*sigma_tilde_membrane_metabolite
+
+        # region where particles are added
+        vtotal_region = (xhi-xlo)*(yhi-ylo)*(zhi-zlo)
+        N_gcmc_1 = experiment_param_dict["N_gcmc_1"]
+        X_gcmc_1 = experiment_param_dict["X_gcmc_1"]
+        seed_gcmc_1 = experiment_param_dict["seed_gcmc_1"]
+        mu_gcmc_1 = experiment_param_dict["mu_gcmc_1"]
+        vfrac = experiment_param_dict["vfrac"]
+        max_gcmc_1 = int((vfrac*vtotal_region*3)/(4*np.pi*(sigma_metabolites*0.5)**3))
 
         # define the region
         x_membrane_max = np.max(mesh_coordinates_array[:, 0])
@@ -240,7 +243,14 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
         trilmp.run(total_number_steps, equilibration_gcmc=self.param_dict['equilibration_gcmc'])
 
 def main():
-    target_dir = Path("experiment4_varying_factors_distance_boxheight").resolve()
+    parser = argparse.ArgumentParser(description="Log File Analysis")
+    parser.add_argument(
+        "-t", "--target_directory", 
+        type=str,
+        help="Path to the target directory"
+    )
+    args = parser.parse_args()
+    target_dir = Path(args.target_directory).resolve()
 
     if os.environ.get("SLURM_ARRAY_TASK_ID") is not None:
         n_dir = int(os.environ.get("SLURM_ARRAY_TASK_ID")) - 1
