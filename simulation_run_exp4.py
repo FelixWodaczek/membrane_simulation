@@ -135,13 +135,10 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
         rc_tilde_membrane_metabolite = interaction_range_metabolites*sigma_tilde_membrane_metabolite
 
         # region where particles are added
-        vtotal_region = (xhi-xlo)*(yhi-ylo)*(zhi-zlo)
         N_gcmc_1 = experiment_param_dict["N_gcmc_1"]
         X_gcmc_1 = experiment_param_dict["X_gcmc_1"]
         seed_gcmc_1 = experiment_param_dict["seed_gcmc_1"]
         mu_gcmc_1 = experiment_param_dict["mu_gcmc_1"]
-        vfrac = experiment_param_dict["vfrac"]
-        max_gcmc_1 = int((vfrac*vtotal_region*3)/(4*np.pi*(sigma_metabolites*0.5)**3))
 
         # define the region
         x_membrane_max = np.max(mesh_coordinates_array[:, 0])
@@ -156,10 +153,14 @@ fix  aveREC all ave/time {N_gcmc_1} 1 {N_gcmc_1} f_freact file 'reactions.dat' m
             -height_width/2, height_width/2, # ylo, yhi
             -height_width/2, height_width/2, # zlo, zhi
         )
+        vtotal_region = (self.param_dict['xhi']-x_membrane_max)*(height_width)*(height_width)
+        vfrac = experiment_param_dict["vfrac"]
+        max_gcmc_1 = int((vfrac*vtotal_region*3)/(4*np.pi*(sigma_metabolites*0.5)**3))
+
         parameters_region_1 = (N_gcmc_1, X_gcmc_1, seed_gcmc_1, 1.0, mu_gcmc_1, max_gcmc_1)
         
         # chemistry
-        Nevery = 100
+        Nevery = experiment_param_dict['Nevery']
         seedR = 2430
         chemistry_parameters = [
             # DegradeWaste

@@ -8,7 +8,7 @@ import filewriter_utils
 
 def main():
     # general names
-    dataset_name = Path("240215_experiment4_varying_factors_distance_boxheight").resolve()
+    dataset_name = Path("240216_experiment4_varying_intrange_mu_nevery").resolve()
 
     # create header directory
     isExist = dataset_name.exists()
@@ -50,18 +50,21 @@ def main():
     rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
     interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]  # 4 handled
     geometric_factors = [0.2] # [1.0, 0.5, 0.2]             # 3 handled
-    prob_transforms = [1.0, 0.0] # [1.0, 0.1, 0.0]               # 3 handled
+    prob_transforms = [1.0] # [1.0, 0.1, 0.0]               # 3 handled
     variable_factors = [10] #[1, 5, 10]                   # 3 handled
-    vfracs = [0.05, 0.01]
+    vfracs = [0.01] # [0.05, 0.01]
+    mu_gcmc_1s = [0, -5, -10]
+    Neverys = [100, 50, 10]
 
-    for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac in product(
+    for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac, mu_gcmc_1, Nevery in product(
         rcs_membrane_metabolite, interaction_strengths,
-        geometric_factors, prob_transforms, variable_factors, vfracs
+        geometric_factors, prob_transforms, variable_factors, 
+        vfracs, mu_gcmc_1s, Neverys
     ):
         N_gcmc_1=int(variable_factor*langevin_damp/step_size)
         X_gcmc_1=100
         seed_gcmc_1 = langevin_seed
-        mu_gcmc_1=0
+        # mu_gcmc_1=0
         # xlo_1 = -10
         # xhi_1 = 10
         # ylo_1 = -10
@@ -83,6 +86,8 @@ def main():
         dirname +="_exp_4"
         dirname +="_eqgcmc_"+str(equilibration_gcmc)
         dirname +="_vfrac_"+str(vfrac)
+        dirname +="_mu_"+str(mu_gcmc_1)
+        dirname +="_nevery_"+str(Nevery)
         dirname +="_intrnge_"+str(rc_mm)
         dirname +="_intstrgth_"+str(interaction_strength)
         dirname +="_geomfact_"+str(geometric_factor)
@@ -104,6 +109,7 @@ def main():
             'X_gcmc_1': X_gcmc_1,
             'seed_gcmc_1': seed_gcmc_1,
             'mu_gcmc_1': mu_gcmc_1,
+            'Nevery': Nevery,
             'vfrac': vfrac,
             # 'xlo_1': xlo_1,
             # 'xhi_1': xhi_1,
