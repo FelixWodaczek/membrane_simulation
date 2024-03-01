@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 
 from trimem.mc.trilmp import TriLmp, Beads
@@ -22,6 +24,7 @@ class SimulationManager():
 
         self.pair_styles: list[utils.BasePairStyle] = []
         self.reactions: list[utils.Reaction] = []
+        self.template_path = Path('reaction_templates/').resolve()
 
     def init_trilmp(self):
         # membrane parameters
@@ -37,7 +40,7 @@ class SimulationManager():
         traj_steps=50
         flip_ratio=0.1
         step_size=0.001
-        self.total_sim_time=1000 # 00  # in time units
+        self.total_sim_time=10000 # 0  # in time units
         discrete_snapshots=10   # in time units
         print_frequency = int(discrete_snapshots/(step_size*traj_steps))
 
@@ -58,7 +61,7 @@ class SimulationManager():
         self.X_gcmc_1=100
         self.seed_gcmc_1 = self.langevin_seed
         self.mu_gcmc_1=0
-        vfrac = 0.01
+        vfrac = 0.05
         geometric_factor = 1.0
         self.sigma_metabolites = 1.0
         self.sigma_tilde_membrane_metabolites = 0.5*(self.sigma_metabolites+self.sigma_membrane)
@@ -193,23 +196,24 @@ class SimulationManager():
         # Add pair styles to self
         self.pair_styles = [table_ps, harmonic_ps]
 
-        # Add reactions
-        self.reactions = [
-            utils.Reaction(
-                name='Transform',
-                pretransform_template='reaction_templates/pre_TransformMetabolites.txt',
-                posttransform_template='reaction_templates/post_TransformMetabolites.txt',
-                map_template='reaction_templates/map_TransformMetabolites.txt',
-                Nevery=10, Rmin=self.sigma_tilde_membrane_metabolites, Rmax=self.interaction_range_tilde, prob=1., seed=2430
-            ), 
-            utils.Reaction(
-                name='DegradeWaste',
-                pretransform_template='reaction_templates/pre_DegradeWaste.txt',
-                posttransform_template='reaction_templates/post_DegradeWaste.txt',
-                map_template='reaction_templates/map_DegradeWaste.txt',
-                Nevery=10+1, Rmin=self.sigma_tilde_membrane_metabolites, Rmax=self.interaction_range_tilde, prob=1., seed=2430+19
-            )
-        ]
+        # Add reactions for every type of cluster setting
+        for n_neighs in range(4, 6):
+            self.reactions += [
+                utils.Reaction(
+                    name=f'Transform{n_neighs}',
+                    pretransform_template=self.template_path.joinpath(f'pre_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    posttransform_template=self.template_path.joinpath(f'post_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    map_template=self.template_path.joinpath(f'map_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    Nevery=100, Rmin=self.sigma_tilde_membrane_metabolites, Rmax=self.interaction_range_tilde, prob=1., seed=2430
+                ),
+                utils.Reaction(
+                    name=f'DegradeWaste{n_neighs}',
+                    pretransform_template=self.template_path.joinpath(f'pre_DegradeWaste_nneigh{n_neighs}.txt'),
+                    posttransform_template=self.template_path.joinpath(f'post_DegradeWaste_nneigh{n_neighs}.txt'),
+                    map_template=self.template_path.joinpath(f'map_DegradeWaste_nneigh{n_neighs}.txt'),
+                    Nevery=100+1, Rmin=self.sigma_tilde_membrane_metabolites, Rmax=self.interaction_range_tilde, prob=1., seed=2430+19
+                )
+            ]
         
         # add a gcmc region
         self.trilmp.lmp.commands_string(f"region gcmc_region_{1} block {self.gcmc_xlo} {self.gcmc_xhi} {self.gcmc_ylo} {self.gcmc_yhi} {self.gcmc_zlo} {self.gcmc_zhi} side in")
@@ -238,7 +242,7 @@ class SimulationManager():
         # Set chemistries
         pre_equilibration_lammps_commands.append(self.get_chemistry_commands())
         # Record chemistry
-        pre_equilibration_lammps_commands.append("fix aveREC all ave/time 1 1 1 f_freact file ‘reactions.dat’ mode vector")
+        # pre_equilibration_lammps_commands.append("fix aveREC all ave/time 1 1 1 f_freact file ‘reactions.dat’ mode vector")
 
         self.trilmp.lmp.commands_string('\n'.join(pre_equilibration_lammps_commands))
 
