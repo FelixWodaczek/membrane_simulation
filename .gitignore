@@ -1,5 +1,8 @@
 # binaries and datafiles
 *.dat
+*.tar
+*.tar.gz
+*.cpt
 *.txt
 *.json
 *.in
@@ -10,13 +13,5 @@
 *.pyc
 
 # Copied python runfiles
+**/trilmp_srp_pot.py
 experiment*/**/*.py
-
-# Output in py_src - temporary
-py_src/**/*.txt
-py_src/**/*.dat
-py_src/**/*.cpt
-py_src/**/*.in
-py_src/**/*.lammps
-py_src/**/*.table
-py_src/**/*pot.py
