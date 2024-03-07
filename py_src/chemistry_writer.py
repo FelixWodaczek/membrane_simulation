@@ -30,7 +30,7 @@ class ChemistryWriter():
             f.close()
         
         with open(self.target_dir.joinpath('map_'+fname), 'w') as f:
-            f.write(f"Map for reaction of changing interacting atom with central atom with {n_cluster-1} neighbours to other type\n\n")
+            f.write(f"# Map for reaction of changing interacting atom with central atom with {n_cluster-1} neighbours to other type\n\n")
             f.write(f'{n_cluster+1} equivalences\n')
             f.write(f'{n_cluster-1} edgeIDs\n')
             if delete_mode:

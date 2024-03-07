@@ -1,67 +1,18 @@
 from pathlib import Path
-from dataclasses import dataclass, field
 
 import numpy as np
 
 from trimem.mc.trilmp import TriLmp, Beads
 from trimesh import Trimesh
 
-import py_src.simulation_utils as simulation_utils
-
-@dataclass
-class MembraneParams():
-    sigma_vertex: float = 1.0
-    vertex_mass: float = 1.0
-    kappa_b: float = 20.0
-    kappa_a: float = 2.5e5
-    kappa_v: float = 2.5e5
-    kappa_c: float = 0.0
-    kappa_t: float = 1.0e4
-    kappa_r: float = 1.0e4
-
-@dataclass
-class Box():
-    xlo: float = -50
-    xhi: float = 50
-    ylo: float = -50
-    yhi: float = 50
-    zlo: float = -50
-    zhi: float = 50
-
-    def to_tuple(self):
-        return (self.xlo, self.xhi, self.ylo, self.yhi, self.zlo, self.zhi)
-    
-    def to_list(self):
-        return [self.xlo, self.xhi, self.ylo, self.yhi, self.zlo, self.zhi]
-    
-    def __str__(self):
-        return ' '.join([str(x) for x in self.to_tuple()])
-
-@dataclass
-class GCMCRegion():
-    name: str
-    N: int
-    maxp: int
-    X: int = 100
-    T: float = 1.0
-    mu: float = 0
-    type: int = 2
-    seed: int = 123
-    box: Box = field(default_factory=Box)
-
-    def region_command(self):
-        return f"region gcmc_region_{self.name} block {self.box} side in"
-
-    def fix_gcmc_command(self):
-        return f"fix mygcmc_{self.name} metabolites gcmc {self.N} {self.X} 0 {self.type} {self.seed} {self.T} {self.mu} 0 region gcmc_region_{self.name} max {self.maxp}"
-
+import py_src.simulation_utils as sutils 
 class SimulationManager():
-    def __init__(self, resolution=2, membrane_params: MembraneParams = MembraneParams()):
+    def __init__(self, resolution=2, membrane_params: sutils.MembraneParams = sutils.MembraneParams()):
         self.membrane_params = membrane_params
 
         self.resolution = resolution
 
-        vertices, faces = simulation_utils.icosphere(resolution)
+        vertices, faces = sutils.icosphere(resolution)
         self.mesh = Trimesh(vertices=vertices, faces=faces)
         # rescaling it so that we start from the right distances
         desired_average_distance = 2**(1.0/6.0) * self.membrane_params.sigma_vertex
@@ -70,11 +21,11 @@ class SimulationManager():
         self.mesh.vertices *= scaling
         self.postequilibration_lammps_commands = []
 
-        self.pair_styles: list[simulation_utils.BasePairStyle] = []
-        self.reactions: list[simulation_utils.Reaction] = []
+        self.pair_styles: list[sutils.BasePairStyle] = []
+        self.reactions: list[sutils.Reaction] = []
         self.template_path = Path(__file__).resolve().parent.joinpath('reaction_templates/')
 
-    def init_trilmp(self, box: Box = Box(xlo=-50, xhi=50, ylo=-50, yhi=50, zlo=-50, zhi=50)):
+    def init_trilmp(self, box: sutils.Box = sutils.Box(xlo=-50, xhi=50, ylo=-50, yhi=50, zlo=-50, zhi=50)):
         # trimem parameters
         self.traj_steps=50
         self.flip_ratio=0.1
@@ -113,6 +64,7 @@ class SimulationManager():
             num_particle_types=3,                       # how many particle types will there be in the system
             mass_particle_type=[self.membrane_params.vertex_mass, 1., 1.],# the mass of the particle per type
             group_particle_type=['vertices', 'metabolites', 'waste'],
+            n_bond_types=2,
 
             step_size=self.step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
             traj_steps=self.traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping

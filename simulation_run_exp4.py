@@ -1,50 +1,33 @@
 import argparse
 from pathlib import Path
 import os
+import shutil
 
 import numpy as np
 
 import py_src.simulation_manager as sm
-import py_src.simulation_utils as simulation_utils
+import py_src.simulation_utils as sutils
 
 def main():
-    simulation_manager = sm.SimulationManager(resolution=3)
+    simulation_manager = sm.SimulationManager(resolution=2)
     simulation_manager.init_trilmp()
 
+    template_path = Path(__file__).resolve().parent.joinpath('reaction_templates')
+
     # Define pair styles
-    table_ps = simulation_utils.TablePairStyle(
+    table_ps = sutils.TablePairStyle(
         style='linear', N=2000,
         coeff_commands = ['1 1 table trimem_srp.table trimem_srp'],
         modify_commands = ['pair table special lj/coul 0.0 0.0 0.0 tail no']
     )
-    harmonic_ps = simulation_utils.HarmonicCutPairStyle()
+    harmonic_ps = sutils.HarmonicCutPairStyle()
     harmonic_ps.set_all_repulsive_commands(3, simulation_manager.membrane_params.sigma_vertex, simulation_manager.sigma_tilde_membrane_metabolites)
-    lj_ps = simulation_utils.LJCutPairStyle(cutoff=2.5)
+    lj_ps = sutils.LJCutPairStyle(cutoff=2.5)
     lj_ps.set_membrane_attraction(3, interaction_strength=simulation_manager.interaction_strength, sigma_tilde=simulation_manager.sigma_tilde_membrane_metabolites, interaction_range=simulation_manager.interaction_range_tilde)
     
     # Add pair styles to self
     simulation_manager.pair_styles = [table_ps, harmonic_ps]
 
-    # Add reactions for every type of cluster setting
-    if False:
-        for n_neighs in range(6, 7):
-            simulation_manager.reactions += [
-                simulation_utils.Reaction(
-                    name=f'Transform{n_neighs}',
-                    pretransform_template=simulation_manager.template_path.joinpath(f'pre_TransformMetabolites_nneigh{n_neighs}.txt'),
-                    posttransform_template=simulation_manager.template_path.joinpath(f'post_TransformMetabolites_nneigh{n_neighs}.txt'),
-                    map_template=simulation_manager.template_path.joinpath(f'map_TransformMetabolites_nneigh{n_neighs}.txt'),
-                    Nevery=100, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430
-                ),
-                simulation_utils.Reaction(
-                    name=f'DegradeWaste{n_neighs}',
-                    pretransform_template=simulation_manager.template_path.joinpath(f'pre_DegradeWaste_nneigh{n_neighs}.txt'),
-                    posttransform_template=simulation_manager.template_path.joinpath(f'post_DegradeWaste_nneigh{n_neighs}.txt'),
-                    map_template=simulation_manager.template_path.joinpath(f'map_DegradeWaste_nneigh{n_neighs}.txt'),
-                    Nevery=100+1, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430+19
-                )
-            ]
-        
     # add a gcmc region
     variable_factor = 10
 
@@ -62,13 +45,13 @@ def main():
     vtotal_region = (simulation_manager.box.xhi-x_membrane_max)*(height_width)*(height_width)
     maxp = int((vfrac*vtotal_region*3)/(4*np.pi*(simulation_manager.sigma_metabolites*0.5)**3))
 
-    gcmc_region_1 = sm.GCMCRegion(
+    gcmc_region_1 = sutils.GCMCRegion(
         name = '1',
         N = int(variable_factor*simulation_manager.langevin_damp/simulation_manager.step_size),
         X = 100,
         seed = simulation_manager.langevin_seed,
         mu = 0,
-        box = sm.Box(
+        box = sutils.Box(
             x_membrane_max, simulation_manager.box.xhi,
             -height_width/2, height_width/2,
             -height_width/2, height_width/2,
@@ -97,7 +80,24 @@ def main():
     pre_equilibration_lammps_commands.append(simulation_manager.get_pair_style_commands())
 
     if False:
-        # Set chemistries
+        for n_neighs in range(7, 8):
+            simulation_manager.reactions += [
+                sutils.Reaction(
+                    name=f'Transform{n_neighs}',
+                    pretransform_template=template_path.joinpath(f'pre_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    posttransform_template=template_path.joinpath(f'post_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    map_template=template_path.joinpath(f'map_TransformMetabolites_nneigh{n_neighs}.txt'),
+                    Nevery=100, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430
+                ),
+                sutils.Reaction(
+                    name=f'DegradeWaste{n_neighs}',
+                    pretransform_template=template_path.joinpath(f'pre_DegradeWaste_nneigh{n_neighs}.txt'),
+                    posttransform_template=template_path.joinpath(f'post_DegradeWaste_nneigh{n_neighs}.txt'),
+                    map_template=template_path.joinpath(f'map_DegradeWaste_nneigh{n_neighs}.txt'),
+                    Nevery=100+1, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430+19
+                )
+            ]
+        
         pre_equilibration_lammps_commands.append(simulation_manager.get_chemistry_commands())
         # Record chemistry
         pre_equilibration_lammps_commands.append("fix aveREC all ave/time 1 1 1 f_freact file ‘reactions.dat’ mode vector")
@@ -120,6 +120,34 @@ def main():
     simulation_manager.pair_styles += [lj_ps]
     postequilibration_lammps_commands.append(simulation_manager.get_pair_style_commands())
 
+    # Add waste creation through bonds, delete bond, add reaction delete any waste atom
+    postequilibration_lammps_commands.append(
+        sutils.BondCreation(
+            name='TransformMetaboliteBonds',
+            target_class='all', itype=1, jtype=2, bondtype=2,
+            Nevery=100, Rmin=simulation_manager.interaction_range_tilde,
+            add_args = {'jparam': '1 3', 'prob': f'1.0 {simulation_manager.langevin_seed}'}
+        ).bond_creation_command()
+    )
+    
+    postequilibration_lammps_commands.append(
+            sutils.BondDeletion(
+                name='DegradeWasteBonds',
+                Nevery=1,
+            ).bond_deletion_command()
+        )
+
+    simulation_manager.reactions = [
+        sutils.Reaction(
+            name=f'DegradeWaste',
+            pretransform_template=template_path.joinpath(f'pre_DegradeWaste.txt'),
+            posttransform_template=template_path.joinpath(f'post_DegradeWaste.txt'),
+            map_template=template_path.joinpath(f'map_DegradeWaste.txt'),
+            Nevery=1, Rmin=0., Rmax=100, prob=1., seed=2430
+        )
+    ]
+    postequilibration_lammps_commands.append(simulation_manager.get_chemistry_commands())
+    
     simulation_manager.trilmp.run(simulation_manager.total_sim_time, fix_symbionts_near=False, integrators_defined=True, postequilibration_lammps_commands=postequilibration_lammps_commands)
 
 if __name__ == '__main__':
@@ -127,10 +155,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run simulation')
     parser.add_argument('-t', '--target-dir', default=None, type=str, help='Target directory')
     args = parser.parse_args()
+
     if args.target_dir is not None:
         target_dir = Path(args.target_dir).resolve()
         if not target_dir.is_dir():
             raise ValueError(f'Target directory {target_dir} does not exist')
         
+        shutil.rmtree(target_dir)
+        os.mkdir(target_dir)
+        os.mkdir(target_dir.joinpath('data'))
+
         os.chdir(target_dir)
     main()
