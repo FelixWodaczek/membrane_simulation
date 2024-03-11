@@ -61,10 +61,10 @@ class SimulationManager():
             kappa_t=self.membrane_params.kappa_t,                          # MEMBRANE MECHANICS: tethering potential to constrain edge length (kB T)
             kappa_r=self.membrane_params.kappa_r,                          # MEMBRANE MECHANICS: repulsive potential to prevent surface intersection (kB T)
             
-            num_particle_types=3,                       # how many particle types will there be in the system
-            mass_particle_type=[self.membrane_params.vertex_mass, 1., 1.],# the mass of the particle per type
-            group_particle_type=['vertices', 'metabolites', 'waste'],
-            n_bond_types=2,
+            num_particle_types=2,                       # how many particle types will there be in the system
+            mass_particle_type=[self.membrane_params.vertex_mass, 1.],# the mass of the particle per type
+            group_particle_type=['vertices', 'metabolites'],
+            n_bond_types=1,
 
             step_size=self.step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
             traj_steps=self.traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping

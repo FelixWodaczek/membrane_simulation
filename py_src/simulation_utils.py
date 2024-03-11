@@ -42,6 +42,7 @@ class GCMCRegion():
     name: str
     N: int
     maxp: int
+    target_group: str = 'metabolites'
     X: int = 100
     T: float = 1.0
     mu: float = 0
@@ -53,7 +54,7 @@ class GCMCRegion():
         return f"region gcmc_region_{self.name} block {self.box} side in"
 
     def fix_gcmc_command(self):
-        return f"fix mygcmc_{self.name} metabolites gcmc {self.N} {self.X} 0 {self.type} {self.seed} {self.T} {self.mu} 0 region gcmc_region_{self.name} max {self.maxp}"
+        return f"fix mygcmc_{self.name} {self.target_group} gcmc {self.N} {self.X} 0 {self.type} {self.seed} {self.T} {self.mu} 0 region gcmc_region_{self.name} max {self.maxp}"
 
 
 class BasePairStyle():
@@ -151,9 +152,10 @@ class Reaction():
         self, 
         name: str, 
         pretransform_template: Path, posttransform_template: Path, map_template: Path,
-        Nevery: float, Rmin: float, Rmax: float, prob:float, seed: int=123
+        Nevery: float, Rmin: float, Rmax: float, prob:float, target_group: str='all', seed: int=123
     ):
         self.name = name
+        self.target_group = target_group
         self.pretransform_template = Path(pretransform_template)
         self.posttransform_template = Path(posttransform_template)
         self.map_template = Path(map_template)
@@ -170,4 +172,100 @@ class Reaction():
         ]
     
     def get_reaction_string(self) -> str:
-        return f"react {self.name} all {self.Nevery} {self.Rmin} {self.Rmax} mpre{self.name} mpost{self.name} {self.map_template} prob {self.prob} {self.seed}"
+        return f"react {self.name} {self.target_group} {self.Nevery} {self.Rmin} {self.Rmax} mpre{self.name} mpost{self.name} {self.map_template} prob {self.prob} {self.seed}"
+    
+
+# Outdated stuff kept just in case
+
+def react_many_chemistries(simulation_manager, template_path: Path):
+    '''Add chemistries with all different surface configurations (clusters of N vertices).
+    
+    Seems to get stuck in an endless loop for more then 6 neighbours.
+    Solution would be to find this in lammps C-code and fix it there.
+    '''
+    commands = []
+    for n_neighs in range(7, 8):
+        simulation_manager.reactions += [
+            Reaction(
+                name=f'Transform{n_neighs}',
+                pretransform_template=template_path.joinpath(f'pre_TransformMetabolites_nneigh{n_neighs}.txt'),
+                posttransform_template=template_path.joinpath(f'post_TransformMetabolites_nneigh{n_neighs}.txt'),
+                map_template=template_path.joinpath(f'map_TransformMetabolites_nneigh{n_neighs}.txt'),
+                Nevery=100, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430
+            ),
+            Reaction(
+                name=f'DegradeWaste{n_neighs}',
+                pretransform_template=template_path.joinpath(f'pre_DegradeWaste_nneigh{n_neighs}.txt'),
+                posttransform_template=template_path.joinpath(f'post_DegradeWaste_nneigh{n_neighs}.txt'),
+                map_template=template_path.joinpath(f'map_DegradeWaste_nneigh{n_neighs}.txt'),
+                Nevery=100+1, Rmin=simulation_manager.sigma_tilde_membrane_metabolites, Rmax=simulation_manager.sigma_tilde_membrane_metabolites+0.1, prob=1., seed=2430+19
+            )
+        ]
+    
+    commands.append(simulation_manager.get_chemistry_commands())
+    # Record chemistry
+    commands.append("fix aveREC all ave/time 1 1 1 f_freact file ‘reactions.dat’ mode vector")
+    return commands
+
+def react_through_bond(simulation_manager, template_path: Path):
+    '''Create reaction with bonds and degradation of waste.
+
+    This is a complete mystery, as somehow every other simulation this will form the bonds and change particle type, but mostly nothing will happen.
+    The chemistry for some reason also does not seem to work, which kind of makes sense since the nearest neighbour will be a surface particle.
+
+    Solution: Maybe try to add a GCMC region working on particle type 3 instead?
+    '''
+    commands = []
+    commands.append(
+        BondCreation(
+            name='TransformMetaboliteBonds',
+            target_class='all', itype=1, jtype=2, bondtype=2,
+            Nevery=100, Rmin=simulation_manager.sigma_tilde_membrane_metabolites,
+            add_args = {'jparam': '1 3', 'prob': f'1.0 {simulation_manager.langevin_seed}'}
+        ).bond_creation_command()
+    )
+        
+    commands.append(
+        BondDeletion(
+            name='DegradeWasteBonds',
+            Nevery=1,
+        ).bond_deletion_command()
+    )
+
+    simulation_manager.reactions = [
+        Reaction(
+            name=f'DegradeWaste',
+            pretransform_template=template_path.joinpath(f'pre_DegradeWaste.txt'),
+            posttransform_template=template_path.joinpath(f'post_DegradeWaste.txt'),
+            map_template=template_path.joinpath(f'map_DegradeWaste.txt'),
+            Nevery=1, Rmin=0., Rmax=100, prob=1., seed=2430
+        )
+    ]
+
+    commands.append(simulation_manager.get_chemistry_commands())
+    return '\n'.join(commands)
+
+
+def make_dynamic_class(interaction_range: float):
+    '''Create a dynamic class called waste, which is every type 2 particle with a membrane neighbour within interaction range.
+
+    Assigning to the group works perfectly, but:
+        - GCMC somehow does not work if only applied to groups, it only works on particle types
+        - fix evaporate does not work with dynamic groups
+        - chemistry does not work since it will always see only the nearest neighbour as a surface particle.
+    '''
+    return '\n'.join([
+        # define compute for membrane neighbours
+        f"compute membrane_neighbours all coord/atom cutoff {interaction_range} group vertices",
+        "variable has_membrane_neighs atom c_membrane_neighbours>0",
+        "compute n_neighs all reduce sum v_has_membrane_neighs",
+        # Reactivate this, is in trilmp.py
+        # define variable is_bonded which is true if there are membrane neighbours and if target atom is group id metabolite
+        'variable is_bonded atom c_membrane_neighbours>0&&type==2',
+        # "run 0",
+        "group waste dynamic all var is_bonded", # every 5
+        "compute n_waste waste count/type atom",
+        "thermo_style custom step c_th_pe c_th_ke c_n_neighs c_n_waste[*]",
+        "thermo_modify norm no",
+        # "fix aveREC all ave/time 1 1 1 v_is_bonded file ‘reactions.dat’"
+    ])
