@@ -38,7 +38,7 @@ class Box():
         return ' '.join([str(x) for x in self.to_tuple()])
 
 @dataclass
-class GCMCRegion():
+class GCMC():
     name: str
     N: int
     maxp: int
@@ -48,13 +48,19 @@ class GCMCRegion():
     mu: float = 0
     type: int = 2
     seed: int = 123
+
+    def fix_gcmc_command(self):
+        return f"fix mygcmc_{self.name} {self.target_group} gcmc {self.N} {self.X} 0 {self.type} {self.seed} {self.T} {self.mu} 0 max {self.maxp}"
+
+@dataclass
+class GCMCRegion(GCMC):
     box: Box = field(default_factory=Box)
 
     def region_command(self):
         return f"region gcmc_region_{self.name} block {self.box} side in"
 
     def fix_gcmc_command(self):
-        return f"fix mygcmc_{self.name} {self.target_group} gcmc {self.N} {self.X} 0 {self.type} {self.seed} {self.T} {self.mu} 0 region gcmc_region_{self.name} max {self.maxp}"
+        return super().fix_gcmc_command() + f' region gcmc_region_{self.name}'
 
 
 class BasePairStyle():
@@ -174,6 +180,28 @@ class Reaction():
     def get_reaction_string(self) -> str:
         return f"react {self.name} {self.target_group} {self.Nevery} {self.Rmin} {self.Rmax} mpre{self.name} mpost{self.name} {self.map_template} prob {self.prob} {self.seed}"
     
+@dataclass
+class DynamicGroup():
+    interaction_range: float
+    seed: int = 123
+    name: str = 'waste'
+    compute_name: str = 'membrane_neighbours'
+    var_name: str = 'is_bonded'
+    target_type: int = 2
+    target_neighbour_group: str = 'vertices'
+    probability: float = 1
+    check_group_every: int = 10
+
+    def get_group_commands(self):
+        return '\n'.join([
+            f"compute {self.compute_name} all coord/atom cutoff {self.interaction_range} group {self.target_neighbour_group}",
+            # "variable has_membrane_neighs atom c_membrane_neighbours>0",
+            # "compute n_neighs all reduce sum v_has_membrane_neighs",
+            # Reactivate this, is in trilmp.py
+            # define variable is_bonded which is true if there are membrane neighbours and if target atom is group id metabolite
+            f'variable {self.var_name} atom c_{self.compute_name}>0&&type=={self.target_type}&&random(0,1,{self.seed})<{self.probability}',
+            f"group {self.name} dynamic all var {self.var_name} every {self.check_group_every}"
+        ])
 
 # Outdated stuff kept just in case
 
@@ -244,28 +272,3 @@ def react_through_bond(simulation_manager, template_path: Path):
 
     commands.append(simulation_manager.get_chemistry_commands())
     return '\n'.join(commands)
-
-
-def make_dynamic_class(interaction_range: float):
-    '''Create a dynamic class called waste, which is every type 2 particle with a membrane neighbour within interaction range.
-
-    Assigning to the group works perfectly, but:
-        - GCMC somehow does not work if only applied to groups, it only works on particle types
-        - fix evaporate does not work with dynamic groups
-        - chemistry does not work since it will always see only the nearest neighbour as a surface particle.
-    '''
-    return '\n'.join([
-        # define compute for membrane neighbours
-        f"compute membrane_neighbours all coord/atom cutoff {interaction_range} group vertices",
-        "variable has_membrane_neighs atom c_membrane_neighbours>0",
-        "compute n_neighs all reduce sum v_has_membrane_neighs",
-        # Reactivate this, is in trilmp.py
-        # define variable is_bonded which is true if there are membrane neighbours and if target atom is group id metabolite
-        'variable is_bonded atom c_membrane_neighbours>0&&type==2',
-        # "run 0",
-        "group waste dynamic all var is_bonded", # every 5
-        "compute n_waste waste count/type atom",
-        "thermo_style custom step c_th_pe c_th_ke c_n_neighs c_n_waste[*]",
-        "thermo_modify norm no",
-        # "fix aveREC all ave/time 1 1 1 v_is_bonded file ‘reactions.dat’"
-    ])

@@ -9,10 +9,10 @@ import py_src.simulation_manager as sm
 import py_src.simulation_utils as sutils
 
 def main():
-    simulation_manager = sm.SimulationManager(resolution=2)
+    simulation_manager = sm.SimulationManager(resolution=4)
     simulation_manager.init_trilmp()
 
-    template_path = Path(__file__).resolve().parent.joinpath('reaction_templates')
+    # template_path = Path(__file__).resolve().parent.joinpath('reaction_templates')
 
     # Define pair styles
     table_ps = sutils.TablePairStyle(
@@ -96,6 +96,23 @@ def main():
     harmonic_ps.set_metabolite_repulsive_commands(n_types=2, sigma_metabolites=simulation_manager.sigma_metabolites)
     simulation_manager.pair_styles += [lj_ps]
     postequilibration_lammps_commands.append(simulation_manager.get_pair_style_commands())
+
+    postequilibration_lammps_commands.append(sutils.DynamicGroup(
+        interaction_range=simulation_manager.interaction_range_tilde,
+        name='waste', probability=5e-2, target_type=2, check_group_every=100,
+        seed=simulation_manager.langevin_seed
+    ).get_group_commands())
+
+    postequilibration_lammps_commands.append(sutils.GCMC(
+        name='waste', target_group='waste', N=100, X=100, seed=simulation_manager.langevin_seed, mu=-100, maxp=1
+    ).fix_gcmc_command())
+    if False:
+        postequilibration_lammps_commands.append('\n'.join([
+            # print number of waste atoms
+            "compute n_waste waste count/type atom",
+            "thermo_style custom step c_th_pe c_th_ke c_n_waste[*]",
+            "thermo_modify norm no"
+        ]))
 
     simulation_manager.trilmp.run(simulation_manager.total_sim_time, fix_symbionts_near=False, integrators_defined=True, postequilibration_lammps_commands=postequilibration_lammps_commands)
 
