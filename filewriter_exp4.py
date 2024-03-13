@@ -1,48 +1,50 @@
 import os
+from dataclasses import asdict
 import json
 import shutil
 from pathlib import Path
 from itertools import product
 
-import filewriter_utils
+import py_src.simulation_utils as sutils
 
 def main():
     # general names
-    dataset_name = Path("240215_experiment4_varying_factors_distance_boxheight").resolve()
+    dataset_name = Path("240212_exp4_test").resolve()
 
     # create header directory
     isExist = dataset_name.exists()
     if not isExist:
         dataset_name.mkdir()
     
-    shutil.copy("mesh_coordinates_N_5072_.dat", dataset_name.joinpath("mesh_coordinates_N_5072_.dat"))
-    shutil.copy("mesh_faces_N_5072_.dat", dataset_name.joinpath("mesh_faces_N_5072_.dat"))
     # metadata collection for sbatch
     fdir = open(dataset_name.joinpath("directories_in_directory.dat"), "w")
 
+    param_dict = {}
+
     # mechanical properties membrane
-    sigma_membrane=1.0
-    kappa_b=20.0
-    kappa_a=2.5e5
-    kappa_v=2.5e5
-    kappa_c=0.0
-    kappa_t=1.0e4
-    kappa_r=1.0e4
+    membrane_parameters = sutils.MembraneParameters(
+        sigma_vertex = 1.0,
+        vertex_mass = 1.0,
+        kappa_b = 20.0,
+        kappa_a = 2.5e5,
+        kappa_v = 2.5e5,
+        kappa_c = 0.0,
+        kappa_t = 1.0e4,
+        kappa_r = 1.0e4
+    )
+    param_dict["membrane_parameters"] = asdict(membrane_parameters)
 
     # trimem parameters
-    traj_steps=50
-    flip_ratio=0.1
-
-    # MD parameters
-    xlo, xhi = -50, 50
-    ylo, yhi = -50, 50
-    zlo, zhi = -50, 50
-    step_size=0.001
-    langevin_damp=1.0
-    langevin_seed=123
-    switch_mode="random"
-    total_sim_time=100000  # in time units
-    discrete_snapshots=10   # in time units
+    trimem_parameters = sutils.TrimemParameters(
+        traj_steps = 50,
+        total_sim_time = 100000, # in time units
+        step_size = 0.001,
+        discrete_snapshots = 10,   # in time units
+        flip_ratio = 0.1,
+        initial_temperature=1.0, # MD PART SIMULATION: temperature of the system
+        pure_MD=False, # MD PART SIMULATION: accept every MD trajectory?
+    )
+    param_dict["trimem_parameters"] = asdict(trimem_parameters)
 
     # Parameters for the GCMC
     equilibration_gcmc=0 # in sim step
@@ -50,36 +52,52 @@ def main():
     rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
     interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]  # 4 handled
     geometric_factors = [0.2] # [1.0, 0.5, 0.2]             # 3 handled
-    prob_transforms = [1.0, 0.0] # [1.0, 0.1, 0.0]               # 3 handled
+    prob_transforms = [1.0, 0.1, 0.01, 0.0]               # 3 handled
     variable_factors = [10] #[1, 5, 10]                   # 3 handled
     vfracs = [0.05, 0.01]
 
     for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac in product(
         rcs_membrane_metabolite, interaction_strengths,
         geometric_factors, prob_transforms, variable_factors, vfracs
-    ):
-        N_gcmc_1=int(variable_factor*langevin_damp/step_size)
-        X_gcmc_1=100
-        seed_gcmc_1 = langevin_seed
-        mu_gcmc_1=0
-        # xlo_1 = -10
-        # xhi_1 = 10
-        # ylo_1 = -10
-        # yhi_1 = 10
-        # zlo_1 = -10
-        # zhi_1 = 10
+    ):  
+        gcmc_parameters = sutils.GCMCParameters(
+            langevin_damp = 1.,
+            X = 100,
+            seed = 123,
+            mu = 0,
+            geometric_factor = geometric_factor,
+            vfrac = vfrac,
+            variable_factor = variable_factor
+        )
+        param_dict['gcmc_parameters'] = asdict(gcmc_parameters)
 
-        sigma_metabolites = 1.0
+        interaction_parameters = sutils.InteractionParameters(
+            interaction_range = rc_mm,
+            interaction_strength = interaction_strength,
+            sigma_metabolites = 1.0
+        )
+        param_dict['interaction_parameters'] = asdict(interaction_parameters)
 
-        dirname = "data_trajsteps_"+str(traj_steps)
-        dirname +="_flipratio_"+str(flip_ratio)
-        dirname +="_stepsize_"+str(step_size)
-        dirname +="_seed_"+str(langevin_seed)
-        dirname +="_kb_"+str(kappa_b)+"_kv_"+str(kappa_v)
-        dirname +="_ka_"+str(kappa_a)+"_kc_"+str(kappa_c)
-        dirname +="_kt_"+str(kappa_t)
-        dirname +="_kr_"+str(kappa_r)
-        dirname +="_lgvdamp_"+str(langevin_damp)
+        chemistry_group = sutils.DynamicGroup(
+            interaction_range=interaction_parameters.interaction_range_tilde(membrane_parameters.sigma_vertex),
+            name='waste', probability=prob_transform, target_type=2, check_group_every=100,
+            seed=gcmc_parameters.seed
+        )
+        chemistry_gcmc = sutils.GCMC(
+            name='waste', target_group='waste', N=100, X=100, seed=gcmc_parameters.seed, mu=-100, maxp=1
+        )
+        param_dict['chemistry_group'] = asdict(chemistry_group)
+        param_dict['chemistry_gcmc'] = asdict(chemistry_gcmc)
+
+        dirname = "data_trajsteps_"+str(trimem_parameters.traj_steps)
+        dirname +="_flipratio_"+str(trimem_parameters.flip_ratio)
+        dirname +="_stepsize_"+str(trimem_parameters.step_size)
+        dirname +="_seed_"+str(gcmc_parameters.seed)
+        dirname +="_kb_"+str(membrane_parameters.kappa_b)+"_kv_"+str(membrane_parameters.kappa_v)
+        dirname +="_ka_"+str(membrane_parameters.kappa_a)+"_kc_"+str(membrane_parameters.kappa_c)
+        dirname +="_kt_"+str(membrane_parameters.kappa_t)
+        dirname +="_kr_"+str(membrane_parameters.kappa_r)
+        dirname +="_lgvdamp_"+str(gcmc_parameters.langevin_damp)
         dirname +="_exp_4"
         dirname +="_eqgcmc_"+str(equilibration_gcmc)
         dirname +="_vfrac_"+str(vfrac)
@@ -93,58 +111,14 @@ def main():
         fdir.writelines(dirname.name+"\n")
 
         # create the internal directory where we vary parameters
-        isExist = dirname.exists()
-        if not isExist:
+        if not dirname.exists():
             dirname.mkdir()
-        shutil.copy("trilmp_srp_pot.py", dirname.joinpath("trilmp_srp_pot.py"))
-
-        # experiment dictionaries
-        experiment_dictionary={
-            'N_gcmc_1': N_gcmc_1,
-            'X_gcmc_1': X_gcmc_1,
-            'seed_gcmc_1': seed_gcmc_1,
-            'mu_gcmc_1': mu_gcmc_1,
-            'vfrac': vfrac,
-            # 'xlo_1': xlo_1,
-            # 'xhi_1': xhi_1,
-            'prob_transform': prob_transform,
-            'geometric_factor': geometric_factor,
-            'sigma_metabolites': sigma_metabolites,
-            'interaction_range_metabolites': rc_mm,
-            'interaction_strength_metabolites': interaction_strength
-        }
-        dictionary_parameters_experiment=experiment_dictionary
-
-
-        parameters = {
-            'traj_steps': traj_steps,
-            'flip_ratio': flip_ratio,
-            'sigma_membrane': sigma_membrane,
-            'kappa_b': kappa_b,
-            'kappa_a': kappa_a,
-            'kappa_c': kappa_c,
-            'kappa_r': kappa_r,
-            'kappa_t': kappa_t,
-            'kappa_v': kappa_v,
-            'step_size': step_size,
-            'langevin_damp': langevin_damp,
-            'langevin_seed': langevin_seed,
-            'switch_mode': switch_mode,
-            'total_sim_time': total_sim_time,
-            'discrete_snapshots': discrete_snapshots,
-            'xlo': xlo,
-            'xhi': xhi,
-            'ylo': ylo,
-            'yhi': yhi,
-            'zlo': zlo,
-            'zhi': zhi,
-            'equilibration_gcmc': equilibration_gcmc,
-            'experiment_number': 4,
-            'dictionary_parameters_experiment': dictionary_parameters_experiment
-        }
+        if not dirname.joinpath('data').exists():
+            dirname.joinpath('data').mkdir()
+        # shutil.copy("trilmp_srp_pot.py", dirname.joinpath("trilmp_srp_pot.py"))
 
         with open(dirname.joinpath("parameter_dict.json"), "w") as f:
-            json.dump(parameters, f, indent=4)
+            json.dump(param_dict, f, indent=4)
             f.close()
 
 if __name__ == "__main__":

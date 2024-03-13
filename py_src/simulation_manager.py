@@ -1,4 +1,5 @@
 from pathlib import Path
+from dataclasses import field
 
 import numpy as np
 
@@ -6,49 +7,45 @@ from trimem.mc.trilmp import TriLmp, Beads
 from trimesh import Trimesh
 
 import py_src.simulation_utils as sutils 
+
 class SimulationManager():
-    def __init__(self, resolution=2, membrane_params: sutils.MembraneParams = sutils.MembraneParams()):
-        self.membrane_params = membrane_params
+    def __init__(
+            self,
+            trimem_params: sutils.TrimemParameters = field(default_factory=sutils.TrimemParameters),
+            membrane_params: sutils.MembraneParameters = field(default_factory=sutils.MembraneParameters),
+            mesh: int | Path = 2, 
+        ):
+        self.trimem_params: sutils.TrimemParameters = trimem_params
+        self.membrane_params: sutils.MembraneParameters = membrane_params
 
-        self.resolution = resolution
-
-        vertices, faces = sutils.icosphere(resolution)
+        if isinstance(mesh, int):
+            vertices, faces = sutils.icosphere(mesh)
+        elif isinstance(mesh, Path):
+            import pandas as pd
+            vertices = pd.read_csv(Path(mesh).resolve().joinpath('mesh_coordinates_N_5072_.dat'), header = None, index_col = False, sep = ' ')[[1, 2, 3]].to_numpy()
+            faces = pd.read_csv(Path(mesh).resolve().joinpath('mesh_faces_N_5072_.dat'), header = None, index_col = False, sep = ' ')[[0, 1, 2]].to_numpy()
+        else:
+            raise TypeError(f'mesh must be either an int or a Path object but is {mesh} of type {type(mesh)}')
+        
         self.mesh = Trimesh(vertices=vertices, faces=faces)
         # rescaling it so that we start from the right distances
         desired_average_distance = 2**(1.0/6.0) * self.membrane_params.sigma_vertex
         current_average_distance = np.mean(self.mesh.edges_unique_length)
         scaling = desired_average_distance/current_average_distance
         self.mesh.vertices *= scaling
-        self.postequilibration_lammps_commands = []
 
         self.pair_styles: list[sutils.BasePairStyle] = []
         self.reactions: list[sutils.Reaction] = []
         self.template_path = Path(__file__).resolve().parent.joinpath('reaction_templates/')
 
-    def init_trilmp(self, box: sutils.Box = sutils.Box(xlo=-50, xhi=50, ylo=-50, yhi=50, zlo=-50, zhi=50)):
-        # trimem parameters
-        self.traj_steps=50
-        self.flip_ratio=0.1
-        self.step_size=0.001
-        self.total_sim_time = 1000 # 00  # in time units
-        self.discrete_snapshots = 10   # in time units
-        self.print_frequency = int(self.discrete_snapshots/(self.step_size*self.traj_steps))
+    def init_trilmp(self, simulation_box: sutils.Box = None):
+        if simulation_box is None:
+            self.box = sutils.Box()
+        else:
+            self.box = simulation_box
 
-        self.initial_temperature=1.0                    # MD PART SIMULATION: temperature of the system
-        pure_MD=False,                             # MD PART SIMULATION: accept every MD trajectory?
-
-        self.langevin_damp=1.0
-        self.langevin_seed=123
-
-        self.box = box
+        print(self.trimem_params, self.membrane_params)
         switch_mode = 'random'
-
-        # Interaction parameters
-        self.interaction_range = 1.5 # rc_mm
-        self.interaction_strength = 10
-        self.sigma_metabolites = 1.0
-        self.sigma_tilde_membrane_metabolites = 0.5*(self.sigma_metabolites+self.membrane_params.sigma_vertex)
-        self.interaction_range_tilde = self.interaction_range*self.sigma_tilde_membrane_metabolites
 
         self.trilmp = TriLmp(
             initialize=True,                          # use mesh to initialize mesh reference
@@ -66,9 +63,9 @@ class SimulationManager():
             group_particle_type=['vertices', 'metabolites'],
             n_bond_types=1,
 
-            step_size=self.step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
-            traj_steps=self.traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping
-            flip_ratio=self.flip_ratio,                    # MC PART SIMULATION: fraction of edges to flip?
+            step_size=self.trimem_params.step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
+            traj_steps=self.trimem_params.traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping
+            flip_ratio=self.trimem_params.flip_ratio,                    # MC PART SIMULATION: fraction of edges to flip?
             # check_neigh_every=1,                      # NEIGHBOUR LISTS
             equilibration_rounds=1,                   # MEMBRANE EQUILIBRATION ROUNDS
 
@@ -76,12 +73,12 @@ class SimulationManager():
 
             output_prefix='data/data',                # OUTPUT: prefix for output filenames
             restart_prefix='data/data',               # OUTPUT: name for checkpoint files
-            checkpoint_every=self.print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
+            checkpoint_every=self.trimem_params.print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
             output_format='lammps_txt',               # OUTPUT: choose different formats for 'lammps_txt', 'lammps_txt_folder' or 'h5_custom'
             output_counter=0,                         # OUTPUT: initialize trajectory number in writer class
-            performance_increment=self.print_frequency,    # OUTPUT: output performace stats to prefix_performance.dat file
-            energy_increment=self.print_frequency,         # OUTPUT: output energies to energies.dat file
-            pure_MD=pure_MD,                          # MD PART SIMULATION: accept every MD trajectory?
+            performance_increment=self.trimem_params.print_frequency,    # OUTPUT: output performace stats to prefix_performance.dat file
+            energy_increment=self.trimem_params.print_frequency,         # OUTPUT: output energies to energies.dat file
+            pure_MD=self.trimem_params.pure_MD,                          # MD PART SIMULATION: accept every MD trajectory?
         )
 
     @staticmethod

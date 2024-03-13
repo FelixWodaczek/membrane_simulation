@@ -9,7 +9,7 @@ def icosphere(n):
     return s.vertices, s.faces
 
 @dataclass
-class MembraneParams():
+class MembraneParameters():
     sigma_vertex: float = 1.0
     vertex_mass: float = 1.0
     kappa_b: float = 20.0
@@ -18,6 +18,43 @@ class MembraneParams():
     kappa_c: float = 0.0
     kappa_t: float = 1.0e4
     kappa_r: float = 1.0e4
+
+@dataclass
+class TrimemParameters():
+    traj_steps: int = 50
+    total_sim_time: int = 1000 # 00  # in time units
+    traj_steps: int = 50
+    step_size: float = 0.001
+    discrete_snapshots: int = 10   # in time units
+    flip_ratio: float = 0.1
+    initial_temperature: float = 1.0                    # MD PART SIMULATION: temperature of the system
+    pure_MD: bool = False                             # MD PART SIMULATION: accept every MD trajectory?
+
+    @property
+    def print_frequency(self):
+        return int(self.discrete_snapshots/(self.step_size*self.traj_steps))
+
+@dataclass
+class InteractionParameters():
+    interaction_range: float = 1.5 # rc_mm
+    interaction_strength: float = 10
+    sigma_metabolites: float = 1.0
+
+    def sigma_tilde_membrane_metabolites(self, sigma_vertex):
+        return 0.5*(self.sigma_metabolites+sigma_vertex)
+
+    def interaction_range_tilde(self, sigma_vertex):
+        return self.interaction_range*self.sigma_tilde_membrane_metabolites(sigma_vertex=sigma_vertex)
+
+@dataclass
+class GCMCParameters:
+    langevin_damp: float
+    X: int
+    seed: int
+    mu: float
+    geometric_factor: float
+    vfrac: float
+    variable_factor: float
 
 @dataclass
 class Box():
