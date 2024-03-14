@@ -44,9 +44,6 @@ class SimulationManager():
         else:
             self.box = simulation_box
 
-        print(self.trimem_params, self.membrane_params)
-        switch_mode = 'random'
-
         self.trilmp = TriLmp(
             initialize=True,                          # use mesh to initialize mesh reference
             mesh_points=self.mesh.vertices,           # input mesh vertices

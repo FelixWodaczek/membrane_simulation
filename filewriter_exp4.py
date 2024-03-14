@@ -42,7 +42,7 @@ def main():
         discrete_snapshots = 10,   # in time units
         flip_ratio = 0.1,
         initial_temperature=1.0, # MD PART SIMULATION: temperature of the system
-        pure_MD=False, # MD PART SIMULATION: accept every MD trajectory?
+        pure_MD=True # MD PART SIMULATION: accept every MD trajectory?
     )
     param_dict["trimem_parameters"] = asdict(trimem_parameters)
 
@@ -51,10 +51,10 @@ def main():
 
     rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
     interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]  # 4 handled
-    geometric_factors = [0.2] # [1.0, 0.5, 0.2]             # 3 handled
+    geometric_factors = [0.5] # [1.0, 0.5, 0.2]             # 3 handled
     prob_transforms = [1.0, 0.1, 0.01, 0.0]               # 3 handled
     variable_factors = [10] #[1, 5, 10]                   # 3 handled
-    vfracs = [0.05, 0.01]
+    vfracs = [0.05]
 
     for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac in product(
         rcs_membrane_metabolite, interaction_strengths,

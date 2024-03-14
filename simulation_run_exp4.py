@@ -31,11 +31,9 @@ def main():
     simulation_manager = sm.SimulationManager(
         trimem_params=trimem_parameters, 
         membrane_params=membrane_parameters, 
-        mesh=2
+        mesh=MESH_PATH
     )
     simulation_manager.init_trilmp()
-
-    # template_path = Path(__file__).resolve().parent.joinpath('reaction_templates')
 
     # Define pair styles
     table_ps = sutils.TablePairStyle(
@@ -65,7 +63,7 @@ def main():
             np.mean(simulation_manager.mesh.vertices, axis=0)-simulation_manager.mesh.vertices, axis=1
         )
     )
-    height_width = r_mean*gcmc_parameters.geometric_factor
+    height_width = r_mean*gcmc_parameters.geometric_factor*2
 
     vtotal_region = (simulation_manager.box.xhi-x_membrane_max)*(height_width)*(height_width)
     maxp = int((gcmc_parameters.vfrac*vtotal_region*3)/(4*np.pi*(interaction_parameters.sigma_metabolites*0.5)**3))
@@ -137,15 +135,26 @@ def main():
 
 if __name__ == '__main__':
     # get target directory from command line using argparse and chdir there
-    parser = argparse.ArgumentParser(description='Run simulation')
-    parser.add_argument('-t', '--target-dir', default=None, type=str, help='Target directory')
+    parser = argparse.ArgumentParser(description="Log File Analysis")
+    parser.add_argument(
+        "-t", "--target_directory", 
+        type=str,
+        help="Path to the target directory"
+    )
     args = parser.parse_args()
+    target_dir = Path(args.target_directory).resolve()
 
-    if args.target_dir is not None:
-        target_dir = Path(args.target_dir).resolve()
-        if not target_dir.is_dir():
-            raise ValueError(f'Target directory {target_dir} does not exist')
+    if not target_dir.is_dir():
+        raise ValueError(f'Target directory {target_dir} does not exist')
+
+    if os.environ.get("SLURM_ARRAY_TASK_ID") is not None:
+        n_dir = int(os.environ.get("SLURM_ARRAY_TASK_ID")) - 1
+        with open(target_dir.joinpath("directories_in_directory.dat"), 'r') as f:
+            subdirs = f.read().splitlines()
+            f.close()
         
-        os.chdir(target_dir)
+        target_dir = target_dir.joinpath(subdirs[n_dir])
+    
+    os.chdir(target_dir)
 
     main()
