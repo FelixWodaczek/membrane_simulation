@@ -1,20 +1,15 @@
-import os
+import argparse
 from dataclasses import asdict
 import json
-import shutil
 from pathlib import Path
+import shutil
 from itertools import product
 
 import py_src.simulation_utils as sutils
 
-def main():
+def write_files(target_dir_name: Path):
     # general names
-    dataset_name = Path("240212_exp4_test").resolve()
-
-    # create header directory
-    isExist = dataset_name.exists()
-    if not isExist:
-        dataset_name.mkdir()
+    dataset_name = target_dir_name
     
     # metadata collection for sbatch
     fdir = open(dataset_name.joinpath("directories_in_directory.dat"), "w")
@@ -120,6 +115,37 @@ def main():
         with open(dirname.joinpath("parameter_dict.json"), "w") as f:
             json.dump(param_dict, f, indent=4)
             f.close()
+
+def main():
+    parser = argparse.ArgumentParser(description="Write experiment files")
+    parser.add_argument(
+        "-t", "--target_directory", 
+        type=str,
+        help="Name of directory to be created"
+    )
+    parser.add_argument(
+        '-o', '--overwrite',
+        action='store_true',
+        help='Overwrite directory tree if it already exists'
+    )
+    args = parser.parse_args()
+
+    if args.target_directory is None:
+        print("No target name given. Supply a directory name using '-t <directory_name>'")
+        return
+
+    overwrite = bool(args.overwrite)
+    target_dir = Path(args.target_directory).resolve()
+
+    # create header directory
+    if target_dir.exists() and target_dir.is_dir():
+        if not overwrite:
+            print(f"Target directory {target_dir} already exists. To overwrite it supply '-o'.")
+            return
+        shutil.rmtree(target_dir)
+
+    target_dir.mkdir()
+    write_files(target_dir_name=target_dir)
 
 if __name__ == "__main__":
     main()
