@@ -141,15 +141,21 @@ if __name__ == '__main__':
         type=str,
         help="Path to the target directory"
     )
+    parser.add_argument(
+        "-l", "--target_filelist", 
+        type=str, default="directories_in_directory.dat",
+        help="List of files on which to run array job"
+    )
     args = parser.parse_args()
     target_dir = Path(args.target_directory).resolve()
+    target_filelist = str(args.target_filelist)
 
     if not target_dir.is_dir():
         raise ValueError(f'Target directory {target_dir} does not exist')
 
     if os.environ.get("SLURM_ARRAY_TASK_ID") is not None:
         n_dir = int(os.environ.get("SLURM_ARRAY_TASK_ID")) - 1
-        with open(target_dir.joinpath("directories_in_directory.dat"), 'r') as f:
+        with open(target_dir.joinpath(target_filelist), 'r') as f:
             subdirs = f.read().splitlines()
             f.close()
         

@@ -70,6 +70,7 @@ class SimulationManager():
 
             output_prefix='data/data',                # OUTPUT: prefix for output filenames
             restart_prefix='data/data',               # OUTPUT: name for checkpoint files
+            thin = self.trimem_params.discrete_snapshots, # OUTPUT: interval of snapshots
             checkpoint_every=self.trimem_params.print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
             output_format='lammps_txt',               # OUTPUT: choose different formats for 'lammps_txt', 'lammps_txt_folder' or 'h5_custom'
             output_counter=0,                         # OUTPUT: initialize trajectory number in writer class

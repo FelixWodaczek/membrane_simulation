@@ -236,7 +236,7 @@ class DynamicGroup():
             # "compute n_neighs all reduce sum v_has_membrane_neighs",
             # Reactivate this, is in trilmp.py
             # define variable is_bonded which is true if there are membrane neighbours and if target atom is group id metabolite
-            f'variable {self.var_name} atom c_{self.compute_name}>0&&type=={self.target_type}&&random(0,1,{self.seed})<{self.probability}',
+            f'variable {self.var_name} atom (c_{self.compute_name}>0)&&(type=={self.target_type})&&(random(0,1,{self.seed})<{self.probability})',
             f"group {self.name} dynamic all var {self.var_name} every {self.check_group_every}"
         ])
 
