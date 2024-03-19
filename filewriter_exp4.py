@@ -44,11 +44,11 @@ def write_files(target_dir_name: Path):
     # Parameters for the GCMC
     equilibration_gcmc=0 # in sim step
 
-    rcs_membrane_metabolite = [1.5, 2.5]            # 2 handled
-    interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]  # 4 handled
-    geometric_factors = [0.5] # [1.0, 0.5, 0.2]             # 3 handled
-    prob_transforms = [1.0, 0.1, 0.01, 0.0]               # 3 handled
-    variable_factors = [10] #[1, 5, 10]                   # 3 handled
+    rcs_membrane_metabolite = [1.5, 2.5]
+    interaction_strengths = [10.0] # [1.0, 5.0, 10.0, 20.0]
+    geometric_factors = [0.6, 0.4, 0.2] # [1.0, 0.5, 0.2]
+    prob_transforms = [1.0, 0.1, 0.01, 0.0]
+    variable_factors = [10] #[1, 5, 10]
     vfracs = [0.05]
 
     for rc_mm, interaction_strength, geometric_factor, prob_transform, variable_factor, vfrac in product(
@@ -145,6 +145,7 @@ def main():
         shutil.rmtree(target_dir)
 
     target_dir.mkdir()
+    target_dir.joinpath('logs').mkdir()
     write_files(target_dir_name=target_dir)
 
 if __name__ == "__main__":

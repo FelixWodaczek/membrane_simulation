@@ -47,7 +47,7 @@ def main():
         2, simulation_manager.membrane_params.sigma_vertex, 
         interaction_parameters.sigma_tilde_membrane_metabolites(membrane_parameters.sigma_vertex)
     )
-    lj_ps = sutils.LJCutPairStyle(cutoff=2.5)
+    lj_ps = sutils.CosineSquaredPairStyle(cutoff=2.5)
     lj_ps.set_membrane_attraction(
         2, interaction_strength=interaction_parameters.interaction_strength, 
         sigma_tilde=interaction_parameters.sigma_tilde_membrane_metabolites(membrane_parameters.sigma_vertex), 

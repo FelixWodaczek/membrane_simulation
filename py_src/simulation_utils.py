@@ -145,6 +145,20 @@ class LJCutPairStyle(BasePairStyle):
         
         self.modify_commands = ['pair lj/cut shift yes']
 
+class CosineSquaredPairStyle(BasePairStyle):
+    def __init__(self, cutoff: float=2.5, *args, **kwargs):
+        super().__init__(name='cosine/squared', *args, **kwargs)
+        self.cutoff = cutoff
+
+    @property
+    def init_params(self) -> list:
+        return [str(self.cutoff)]
+
+    def set_membrane_attraction(self, n_types, interaction_strength, sigma_tilde, interaction_range):
+        self.coeff_commands = ['* * cosine/squared 0 0']
+        for i_regular in range(1, n_types):
+            self.coeff_commands.append(f'1 {i_regular+1} cosine/squared {interaction_strength} {sigma_tilde} {interaction_range}')
+        
 class HarmonicCutPairStyle(BasePairStyle):
     def __init__(self, *args, **kwargs):
         super().__init__(name='harmonic/cut', *args, **kwargs)
