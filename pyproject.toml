@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "membrane_simulation"
+requires-python = ">=3.9"
+version = "0.0.1"
+authors = [
+    {name = "Felix Wodaczek"}
+]
+
+[tool.setuptools]
+packages = ["membrane_simulation"]
+package-dir = {"" = "src"}

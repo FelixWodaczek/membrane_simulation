@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 from itertools import product
 
-import py_src.simulation_utils as sutils
+import membrane_simulation.simulation_utils as sutils
 
 def write_files(target_dir_name: Path):
     # general names

@@ -6,8 +6,8 @@ import json
 
 import numpy as np
 
-import py_src.simulation_manager as sm
-import py_src.simulation_utils as sutils
+import membrane_simulation.simulation_manager as sm
+import membrane_simulation.simulation_utils as sutils
 
 MESH_PATH = Path(__file__).resolve().parent
 
