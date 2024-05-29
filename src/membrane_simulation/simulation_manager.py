@@ -6,7 +6,7 @@ import numpy as np
 from trimem.mc.trilmp import TriLmp, Beads
 from trimesh import Trimesh
 
-import py_src.simulation_utils as sutils 
+import membrane_simulation.simulation_utils as sutils 
 
 class SimulationManager():
     def __init__(
@@ -36,7 +36,6 @@ class SimulationManager():
 
         self.pair_styles: list[sutils.BasePairStyle] = []
         self.reactions: list[sutils.Reaction] = []
-        self.template_path = Path(__file__).resolve().parent.joinpath('reaction_templates/')
 
     def init_trilmp(self, simulation_box: sutils.Box = None):
         if simulation_box is None:

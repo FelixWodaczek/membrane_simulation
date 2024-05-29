@@ -11,6 +11,7 @@
 
 # Python binaries
 *.pyc
+**.egg-info
 
 # Copied python runfiles
 **/trilmp_srp_pot.py
