@@ -37,45 +37,55 @@ class SimulationManager():
         self.pair_styles: list[sutils.BasePairStyle] = []
         self.reactions: list[sutils.Reaction] = []
 
-    def init_trilmp(self, simulation_box: sutils.Box = None):
+    def init_trilmp(
+            self,
+            simulation_box: sutils.Box = None,
+            debug_mode: bool = False,
+            metabolite_masses: list[float] = None,
+        ):
         if simulation_box is None:
             self.box = sutils.Box()
         else:
             self.box = simulation_box
 
+        if metabolite_masses is None:
+            metabolite_masses = [1.0] * (self.trimem_params.n_groups - 1)
+        assert len(metabolite_masses) == self.trimem_params.n_groups - 1, f"metabolite_masses must have length {self.trimem_params.n_groups - 1} but has length {len(metabolite_masses)}"
+
         self.trilmp = TriLmp(
             initialize=True,                          # use mesh to initialize mesh reference
+            debug_mode=debug_mode,
+
             mesh_points=self.mesh.vertices,           # input mesh vertices
             mesh_faces=self.mesh.faces,               # input of the mesh faces
-            kappa_b=self.membrane_params.kappa_b,                          # MEMBRANE MECHANICS: bending modulus (kB T)
-            kappa_a=self.membrane_params.kappa_a,                          # MEMBRANE MECHANICS: constraint on area change from target value (kB T)
-            kappa_v=self.membrane_params.kappa_v,                          # MEMBRANE MECHANICS: constraint on volume change from target value (kB T)
-            kappa_c=self.membrane_params.kappa_c,                          # MEMBRANE MECHANICS: constraint on area difference change (understand meaning) (kB T)
-            kappa_t=self.membrane_params.kappa_t,                          # MEMBRANE MECHANICS: tethering potential to constrain edge length (kB T)
-            kappa_r=self.membrane_params.kappa_r,                          # MEMBRANE MECHANICS: repulsive potential to prevent surface intersection (kB T)
+            kappa_b=self.membrane_params.kappa_b,     # MEMBRANE MECHANICS: bending modulus (kB T)
+            kappa_a=self.membrane_params.kappa_a,     # MEMBRANE MECHANICS: constraint on area change from target value (kB T)
+            kappa_v=self.membrane_params.kappa_v,     # MEMBRANE MECHANICS: constraint on volume change from target value (kB T)
+            kappa_c=self.membrane_params.kappa_c,     # MEMBRANE MECHANICS: constraint on area difference change (understand meaning) (kB T)
+            kappa_t=self.membrane_params.kappa_t,     # MEMBRANE MECHANICS: tethering potential to constrain edge length (kB T)
+            kappa_r=self.membrane_params.kappa_r,     # MEMBRANE MECHANICS: repulsive potential to prevent surface intersection (kB T)
             
-            num_particle_types=2,                       # how many particle types will there be in the system
-            mass_particle_type=[self.membrane_params.vertex_mass, 1.],# the mass of the particle per type
-            group_particle_type=['vertices', 'metabolites'],
+            num_particle_types=self.trimem_params.n_groups,                       # how many particle types will there be in the system
+            mass_particle_type=[self.membrane_params.vertex_mass]+metabolite_masses,# the mass of the particle per type
+            group_particle_type=self.trimem_params.particle_groups,                 # the names of the groups
             n_bond_types=1,
 
             step_size=self.trimem_params.step_size,                      # FLUIDITY ---- MD PART SIMULATION: timestep of the simulation
             traj_steps=self.trimem_params.traj_steps,                    # FLUIDITY ---- MD PART SIMULATION: number of MD steps before bond flipping
             flip_ratio=self.trimem_params.flip_ratio,                    # MC PART SIMULATION: fraction of edges to flip?
+            initial_temperature=self.trimem_params.initial_temperature,          # MD PART SIMULATION: temperature of the system
+            switch_mode='random',
             # check_neigh_every=1,                      # NEIGHBOUR LISTS
-            equilibration_rounds=1,                   # MEMBRANE EQUILIBRATION ROUNDS
-
+            equilibration_rounds=self.trimem_params.equilibriation_rounds,                   # MEMBRANE EQUILIBRATION ROUNDS
+            pure_MD=self.trimem_params.pure_MD,                          # MD PART SIMULATION: accept every MD trajectory?
+            
             box=self.box.to_tuple(),                       # MD PART SIMULATION: box dimensions
 
-            output_prefix='data/data',                # OUTPUT: prefix for output filenames
-            restart_prefix='data/data',               # OUTPUT: name for checkpoint files
+            info = self.trimem_params.print_frequency,
             thin = self.trimem_params.discrete_snapshots, # OUTPUT: interval of snapshots
-            checkpoint_every=self.trimem_params.print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
-            output_format='lammps_txt',               # OUTPUT: choose different formats for 'lammps_txt', 'lammps_txt_folder' or 'h5_custom'
-            output_counter=0,                         # OUTPUT: initialize trajectory number in writer class
-            performance_increment=self.trimem_params.print_frequency,    # OUTPUT: output performace stats to prefix_performance.dat file
-            energy_increment=self.trimem_params.print_frequency,         # OUTPUT: output energies to energies.dat file
-            pure_MD=self.trimem_params.pure_MD,                          # MD PART SIMULATION: accept every MD trajectory?
+            checkpoint_every=100*self.trimem_params.print_frequency,         # OUTPUT: interval of checkpoints (alternating pickles)
+            performance_increment=self.trimem_params.print_program_iterations,    # OUTPUT: output performace stats to prefix_performance.dat file
+            energy_increment=self.trimem_params.print_program_iterations,         # OUTPUT: output energies to energies.dat file
         )
 
     @staticmethod

@@ -22,17 +22,24 @@ class MembraneParameters():
 @dataclass
 class TrimemParameters():
     traj_steps: int = 50
+    equilibriation_rounds: int = 1
     total_sim_time: int = 1000 # 00  # in time units
     traj_steps: int = 50
     step_size: float = 0.001
     discrete_snapshots: int = 10   # in time units
+    print_program_iterations: int = 100
     flip_ratio: float = 0.1
     initial_temperature: float = 1.0                    # MD PART SIMULATION: temperature of the system
     pure_MD: bool = False                             # MD PART SIMULATION: accept every MD trajectory?
+    particle_groups: list[str] = ['vertices', 'metabolites']
 
     @property
     def print_frequency(self):
         return int(self.discrete_snapshots/(self.step_size*self.traj_steps))
+    
+    @property
+    def n_groups(self):
+        return len(self.particle_groups)
 
 @dataclass
 class InteractionParameters():
