@@ -447,7 +447,8 @@ class SimLauncher_BasicGradient:
                  sigma_metabolites  = 1.0,
 
                  # additional fixes
-                 fix_COM = "#"
+                 fix_COM = "#",
+                 channel_height = 0.2
                  ):
 
         print("WARNING: Default membrane group is 'vertices' and metabolites 'metabolites'.")
@@ -477,7 +478,8 @@ class SimLauncher_BasicGradient:
              self.mesh = trimesh.Trimesh(vertices=mesh_coordinates_array, faces = mesh_faces_array) 
 
         self.N = len(self.mesh.vertices)
-
+        # channel height, this is only here for filewriting
+        self.channel_height = channel_height
         # rescaling mesh distances
         desired_average_distance = 2**(1.0/6.0) * self.sigma
         current_average_distance = np.mean(self.mesh.edges_unique_length)
