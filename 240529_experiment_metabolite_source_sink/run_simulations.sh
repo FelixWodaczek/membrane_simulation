@@ -21,8 +21,8 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #load the respective software module you intend to use
 # here one would need to load the sconda environment for Trilmp, here called Trimenv
 module purge
-module load anaconda3/2023.04
-source /mnt/nfs/clustersw/Debian/bullseye/anaconda3/2023.04/activate_anaconda3_2023.04.txt
+module load anaconda3/2024.03_deb12
+source /mnt/nfs/clustersw/Debian/bullseye/anaconda3/2024.03_deb12/activate_anaconda3_2024.03_deb12.txt
 module load openmpi
 
 conda activate Trienv

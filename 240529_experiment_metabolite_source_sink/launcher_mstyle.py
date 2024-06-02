@@ -83,7 +83,7 @@ def main():
         fix CONFWALL metabolites wall/region CONFINEMENT harmonic 5000 1 1
         region CHANNEL cylinder x 0 0 {dimensions_boxes+2} {sim.edge_vesicle} EDGE side in"""
 
-        params['gradient_commands'] = gradient_commands
+        params['gradient_commands'] = cg.append_lines_to_list(gradient_commands)
         
         # different LAMMPS calculations that make life easy
         # you can add anything you see fitting
@@ -108,7 +108,6 @@ def main():
         sim.initialize_commands_gradient(params)
 
         path = cg.create_directory_structure(main_path+"/run"+str(int(index_run))+"/", sim, varied_parameters, launch_directories)
-        print(path)
         sim.write_function(path+'/launch.py')
 
 if __name__ == '__main__':
