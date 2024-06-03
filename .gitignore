@@ -2,6 +2,7 @@
 *.dat
 *.tar
 *.tar.gz
+*.gz
 *.cpt
 *.txt
 *.json
@@ -12,7 +13,8 @@
 # Python binaries
 *.pyc
 **.egg-info
+*.pickle
 
 # Copied python runfiles
 **/trilmp_srp_pot.py
-experiment*/**/*.py
+**/launch.py
