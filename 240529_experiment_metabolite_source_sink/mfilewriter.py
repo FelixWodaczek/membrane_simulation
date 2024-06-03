@@ -2,7 +2,7 @@ from itertools import product
 
 import numpy as np
 
-import ClassesGradient as cg
+import membrane_simulation.mgradient_classes as cg
 
 def main():
     launch_directories = cg.prepare_bash_launch()
