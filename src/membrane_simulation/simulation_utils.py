@@ -31,7 +31,7 @@ class TrimemParameters():
     flip_ratio: float = 0.1
     initial_temperature: float = 1.0                    # MD PART SIMULATION: temperature of the system
     pure_MD: bool = False                             # MD PART SIMULATION: accept every MD trajectory?
-    particle_groups: list[str] = ['vertices', 'metabolites']
+    particle_groups: list[str] = field(default_factory=lambda: ['vertices', 'metabolites'])
 
     @property
     def print_frequency(self):

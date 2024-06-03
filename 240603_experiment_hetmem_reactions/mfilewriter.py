@@ -3,6 +3,7 @@ from itertools import product
 import numpy as np
 
 import membrane_simulation.mgradient_classes as cg
+import membrane_simulation.simulation_utils as sutils
 
 def main():
     launch_directories = cg.prepare_bash_launch()
@@ -14,6 +15,7 @@ def main():
     varied_parameters = ['langevin_seed', 'channel_height']
     langevin_seeds = [123]
     channel_heights = np.round(np.arange(0.1, 1.1, 0.1), 2)
+    probabilities = np.append(np.array([0.]), np.logspace(-3, 0, 4))
 
     # MD variables
     total_sim_time = 5000 # units of time
@@ -37,7 +39,7 @@ def main():
     # do not touch this value - the program takes care of it
     metabolite_type = 3
 
-    for langevin_seed, channel_height in product(langevin_seeds, channel_heights):
+    for langevin_seed, channel_height, probability in product(langevin_seeds, channel_heights, probabilities):
         total_simulations += 1
         
         resolution = 5
@@ -84,6 +86,28 @@ def main():
         region CHANNEL cylinder x 0 0 {dimensions_boxes+2} {sim.edge_vesicle} EDGE side in"""
 
         params['gradient_commands'] = cg.append_lines_to_list(gradient_commands)
+
+        # Define consumption
+        ## dynamic group to change metabolites (type 3) to waste (also type 3)
+        waste_group = sutils.DynamicGroup(
+            interaction_range=1.5,
+            seed=langevin_seed**2,
+            name='waste',
+            target_type=metabolite_type,
+            target_neighbour_group='active_vertices',
+            probability=probability,
+        )
+        ## gcmc to remove waste
+        removal_gcmc = sutils.GCMC(
+            name='waste',
+            target_group='waste',
+            N=100,
+            X=100,
+            seed=langevin_seed**2,
+            mu=-100,
+            maxp=1,
+        )
+        chemistry_commands = '\n'.join([waste_group.get_group_commands(), removal_gcmc.fix_gcmc_command()])
         
         # different LAMMPS calculations that make life easy
         # you can add anything you see fitting
@@ -101,7 +125,8 @@ def main():
         compute FORCES vertices group/group metabolites pair yes
         fix aveFORCES all ave/time {sim.print_frequency} 1 {sim.print_frequency} c_FORCES c_FORCES[1] c_FORCES[2] c_FORCES[3] file "metabolite_forces.dat"
         """
-        
+        additional_fixes += chemistry_commands
+
         # add additional fixes
         params['additional_fixes'] = cg.append_lines_to_list(additional_fixes)
 
