@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH --job-name=Cntrl6
+#SBATCH --job-name=hetmem_reactions
 #SBATCH --output="output/output-%A_%a_%x.out"
 #SBATCH --exclude=zeta[243-263]
 #SBATCH --nodes 1
@@ -23,7 +23,7 @@ module load anaconda3/2024.03_deb12
 source /mnt/nfs/clustersw/Debian/bullseye/anaconda3/2024.03_deb12/activate_anaconda3_2024.03_deb12.txt
 module load openmpi
 
-conda activate Trienv
+conda activate trienv
 
 export SRUN_CPUS_PER_TASK=${SLURM_CPUS_PER_TASK:-1}
 

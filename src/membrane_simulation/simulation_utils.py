@@ -196,7 +196,7 @@ class BondCreation():
     add_args: dict = field(default_factory=dict)
 
     def bond_creation_command(self) -> str:
-        return f"fix {self.name} {self.target_class} bond/create {self.Nevery} {self.itype} {self.jtype} {self.Rmin} {self.bondtype} {' '.join([f"{k} {v}" for k, v in self.add_args.items()])}"
+        return f"fix {self.name} {self.target_class} bond/create {self.Nevery} {self.itype} {self.jtype} {self.Rmin} {self.bondtype} {' '.join([f'{k} {v}' for k, v in self.add_args.items()])}"
 
 @dataclass
 class BondDeletion():
@@ -209,7 +209,7 @@ class BondDeletion():
     add_args: dict = field(default_factory=dict)
 
     def bond_deletion_command(self) -> str:
-        return f"fix {self.name} all bond/break {self.Nevery} {self.bondtype} {self.Rmax} prob {self.prob} {self.seed} {' '.join([f"{k} {v}" for k, v in self.add_args.items()])}"
+        return f"fix {self.name} all bond/break {self.Nevery} {self.bondtype} {self.Rmax} prob {self.prob} {self.seed} {' '.join([f'{k} {v}' for k, v in self.add_args.items()])}"
 
 class Reaction():
     def __init__(

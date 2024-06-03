@@ -12,7 +12,7 @@ def main():
     index_run = cg.check_num_runs(main_path)
     total_simulations = 0
 
-    varied_parameters = ['langevin_seed', 'channel_height']
+    varied_parameters = ['langevin_seed', 'channel_height', 'probability']
     langevin_seeds = [123]
     channel_heights = np.round(np.arange(0.1, 1.1, 0.1), 2)
     probabilities = np.append(np.array([0.]), np.logspace(-3, 0, 4))
@@ -56,6 +56,7 @@ def main():
             resolution=resolution,
             fix_COM=fix_COM,
             channel_height=channel_height,
+            probability=probability,
         )
 
         # DEFINE GEOMETRY OF THE SYSTEM
@@ -101,6 +102,7 @@ def main():
         removal_gcmc = sutils.GCMC(
             name='waste',
             target_group='waste',
+            type=metabolite_type,
             N=100,
             X=100,
             seed=langevin_seed**2,
