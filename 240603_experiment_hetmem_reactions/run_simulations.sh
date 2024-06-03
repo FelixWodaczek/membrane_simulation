@@ -23,7 +23,7 @@ module load anaconda3/2024.03_deb12
 source /mnt/nfs/clustersw/Debian/bullseye/anaconda3/2024.03_deb12/activate_anaconda3_2024.03_deb12.txt
 module load openmpi
 
-conda activate trienv
+conda activate Trienv
 
 export SRUN_CPUS_PER_TASK=${SLURM_CPUS_PER_TASK:-1}
 

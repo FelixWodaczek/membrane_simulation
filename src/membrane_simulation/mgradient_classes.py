@@ -809,7 +809,8 @@ class SimLauncher_HeterogeneousMembrane:
                  sigma_metabolites  = 1.0,
 
                  # additional fixes
-                 fix_COM = "#"
+                 fix_COM = "#",
+                 channel_height = 0.2
                  ):
 
         print("WARNING: Heterogeneous membrane simulations. Default membrane group (1 + 2) is 'vertices' and metabolites (3) 'metabolites'.")
@@ -846,6 +847,9 @@ class SimLauncher_HeterogeneousMembrane:
         self.N = len(self.mesh.vertices)
         self.fraction_heterogeneous = fraction_heterogeneous
         self.N_patch = int(self.N*self.fraction_heterogeneous)
+
+        # channel height, this is only here for filewriting
+        self.channel_height = channel_height
 
         if randomly_distribute_patches:
             self.heterogeneous_membrane_id = np.random.randint(0, self.N, self.N_patch)
