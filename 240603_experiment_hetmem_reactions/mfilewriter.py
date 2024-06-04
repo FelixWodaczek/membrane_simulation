@@ -38,14 +38,14 @@ def main():
     fix_COM = ''
     # do not touch this value - the program takes care of it
     metabolite_type = 3
+    fraction_heterogeneous = 0.2
 
     for langevin_seed, channel_height, probability in product(langevin_seeds, channel_heights, probabilities):
         total_simulations += 1
         
         resolution = 5
         
-        sim = cg.SimLauncher_HeterogeneousMembrane(
-            langevin_seed=langevin_seed, 
+        sim = cg.SimLauncher_HeterogeneousMembrane(langevin_seed=langevin_seed, 
             total_sim_time=total_sim_time, 
             discret_snapshots=discret_snapshots, 
             print_program_iterations=print_program_iterations,
@@ -55,6 +55,7 @@ def main():
             kappa_v=kappa_v,
             resolution=resolution,
             fix_COM=fix_COM,
+            fraction_heterogeneous=fraction_heterogeneous,
             channel_height=channel_height,
             probability=probability,
         )
