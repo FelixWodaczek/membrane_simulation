@@ -12,10 +12,11 @@ def main():
     index_run = cg.check_num_runs(main_path)
     total_simulations = 0
 
-    varied_parameters = ['langevin_seed', 'channel_height', 'probability']
+    varied_parameters = ['langevin_seed', 'channel_height', 'probability', 'chem_range']
     langevin_seeds = [123]
-    channel_heights = np.round(np.arange(0.1, 1.1, 0.1), 2)
-    probabilities = np.append(np.array([0.]), np.logspace(-3, 0, 4))
+    channel_heights = np.round(np.arange(0.2, 0.7, 0.1), 2)
+    probabilities = np.logspace(-3, 0, 4)
+    chem_ranges = [0.2, 0.5, 0.8, 1.1, 1.4]
 
     # MD variables
     total_sim_time = 5000 # units of time
@@ -40,7 +41,7 @@ def main():
     metabolite_type = 3
     fraction_heterogeneous = 0.2
 
-    for langevin_seed, channel_height, probability in product(langevin_seeds, channel_heights, probabilities):
+    for langevin_seed, channel_height, probability, chem_range in product(langevin_seeds, channel_heights, probabilities, chem_ranges):
         total_simulations += 1
         
         resolution = 5
@@ -58,6 +59,7 @@ def main():
             fraction_heterogeneous=fraction_heterogeneous,
             channel_height=channel_height,
             probability=probability,
+            chem_range=chem_range,
         )
 
         # DEFINE GEOMETRY OF THE SYSTEM
@@ -92,7 +94,7 @@ def main():
         # Define consumption
         ## dynamic group to change metabolites (type 3) to waste (also type 3)
         waste_group = sutils.DynamicGroup(
-            interaction_range=1.5,
+            interaction_range=chem_range,
             seed=langevin_seed**2,
             name='waste',
             target_type=metabolite_type,
