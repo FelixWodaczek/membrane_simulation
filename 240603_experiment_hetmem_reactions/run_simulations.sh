@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
-#SBATCH --job-name=hetmem_reactions
+#SBATCH --job-name=hetmem_inertchem
 #SBATCH --output="output/output-%A_%a_%x.out"
-#SBATCH --exclude=zeta[243-263]
+#SBATCH --exclude=zeta[243-263],bigbadaboom
 #SBATCH --nodes 1
 #SBATCH -c 4
 #SBATCH --time=240:00:00

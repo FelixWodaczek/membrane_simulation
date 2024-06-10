@@ -14,9 +14,9 @@ def main():
 
     varied_parameters = ['langevin_seed', 'channel_height', 'probability', 'chem_range']
     langevin_seeds = [123]
-    channel_heights = np.round(np.arange(0.2, 0.7, 0.1), 2)
-    probabilities = np.logspace(-3, 0, 4)
-    chem_ranges = [0.2, 0.5, 0.8, 1.1, 1.4]
+    channel_heights = np.round(np.arange(0.1, 1.1, 0.1), 2)
+    probabilities = np.round(np.logspace(-2, 0, 5), 3)
+    chem_ranges = [1.5] # [0.2, 0.5, 0.8, 1.1, 1.4]
 
     # MD variables
     total_sim_time = 5000 # units of time
@@ -98,7 +98,7 @@ def main():
             seed=langevin_seed**2,
             name='waste',
             target_type=metabolite_type,
-            target_neighbour_group='active_vertices',
+            target_neighbour_group='inert_vertices',
             probability=probability,
         )
         ## gcmc to remove waste
